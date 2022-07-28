@@ -1,3 +1,9 @@
+mod field;
+mod tile;
+
+use field::Field;
+
 fn main() {
-    println!("Hello, world!");
+    let f = Field::create(20, 20);
+    println!("{}", f);
 }
