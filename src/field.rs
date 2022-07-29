@@ -1,7 +1,7 @@
-use crate::tile::{Tile, TileKind};
+use crate::tile::Tile;
 use std::fmt;
 
-#[allow (dead_code)]
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Field {
     rows: usize,
@@ -22,7 +22,7 @@ impl fmt::Display for Field {
     }
 }
 
-#[allow (dead_code)]
+#[allow(dead_code)]
 impl Field {
     pub fn create(rows: usize, cols: usize) -> Self {
         Self {
