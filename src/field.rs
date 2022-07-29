@@ -1,6 +1,7 @@
 use crate::tile::{Tile, TileKind};
 use std::fmt;
 
+#[allow (dead_code)]
 #[derive(Debug)]
 pub struct Field {
     rows: usize,
@@ -8,6 +9,7 @@ pub struct Field {
     field: Vec<Vec<Tile>>,
 }
 
+#[allow(unused_must_use)]
 impl fmt::Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tiles in self.field.iter() {
@@ -24,6 +26,7 @@ impl fmt::Display for Field {
     }
 }
 
+#[allow (dead_code)]
 impl Field {
     pub fn create(rows: usize, cols: usize) -> Self {
         Self {
