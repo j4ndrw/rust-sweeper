@@ -14,11 +14,7 @@ impl fmt::Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tiles in self.field.iter() {
             for tile in tiles {
-                match tile.kind {
-                    TileKind::Bomb => write!(f, "[{}]", '*'),
-                    TileKind::Empty => write!(f, "[{}]", ' '),
-                    TileKind::Safe => write!(f, "[{}]", tile.neighbours.len()),
-                };
+                write!(f, "{}", &*tile.repr);
             }
             writeln!(f, "");
         }
