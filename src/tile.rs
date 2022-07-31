@@ -43,6 +43,18 @@ impl Tile {
         }
     }
 
+    pub fn new_empty() -> Self {
+        Self::new(TileKind::Empty, vec![], true)
+    }
+
+    pub fn new_safe(neighbouring_bombs: Vec<Tile>) -> Self {
+        Self::new(TileKind::Safe, neighbouring_bombs, true)
+    }
+
+    pub fn new_bomb() -> Self {
+        Self::new(TileKind::Bomb, vec![], true)
+    }
+
     pub fn reveal(&mut self) {
         self.revealed = true;
     }
@@ -57,13 +69,5 @@ impl Tile {
 
     pub fn unflag(&mut self) {
         self.flagged = false;
-    }
-
-    pub fn make_random() -> Self {
-        Self::new(
-            TileKind::Safe,
-            vec![Tile::new(TileKind::Bomb, vec![], false)],
-            false,
-        )
     }
 }
