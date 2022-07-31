@@ -8,35 +8,37 @@ pub enum TileKind {
 #[derive(Debug, Clone)]
 pub struct Tile {
     pub kind: TileKind,
-    pub neighbours: Vec<Tile>,
+    pub neighbouring_bombs: Vec<Tile>,
     pub revealed: bool,
     pub flagged: bool,
     pub repr: String,
 }
 
 impl Tile {
-    pub fn new(kind: TileKind, neighbours: Vec<Tile>, revealed: bool) -> Self {
-        let checked_tile_kind: TileKind = if kind == TileKind::Safe && neighbours.len() == 0 {
+    fn new(kind: TileKind, neighbouring_bombs: Vec<Tile>, revealed: bool) -> Self {
+        let checked_tile_kind: TileKind = if kind == TileKind::Safe && neighbouring_bombs.len() == 0 {
             TileKind::Empty
         } else {
             kind
         };
 
-        let num_neighbours = neighbours.clone().len();
+        let num_neighbouring_bombs = neighbouring_bombs.clone().len();
 
         Self {
             kind: checked_tile_kind,
-            neighbours,
+            neighbouring_bombs,
             revealed,
             flagged: false,
             repr: if revealed {
                 match checked_tile_kind {
-                    TileKind::Bomb => "[💣]".to_string(),
-                    TileKind::Empty => "[ ]".to_string(),
-                    TileKind::Safe => format!("[{}]", num_neighbours)
+                    TileKind::Bomb => " & ".to_string(),
+                    TileKind::Empty => "   ".to_string(),
+                    TileKind::Safe => {
+                        format!(" {} ", num_neighbouring_bombs)
+                    }
                 }
             } else {
-                "[·]".to_string()
+                " · ".to_string()
             },
         }
     }
