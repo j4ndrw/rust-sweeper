@@ -165,7 +165,7 @@ impl fmt::Display for Field {
 #[allow(dead_code)]
 impl Field {
     pub fn create(rows: usize, cols: usize) -> Self {
-        let bomb_percentage: f32 = 0.2; // 35% chance the tile is a bomb
+        let bomb_percentage: f32 = 0.35; // 35% chance the tile is a bomb
         let total_num_of_bombs = (((rows * cols) as f32) * bomb_percentage) as usize;
 
         Self {
