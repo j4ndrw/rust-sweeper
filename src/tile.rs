@@ -1,3 +1,5 @@
+pub type TileSignedPosition = (i32, i32);
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TileKind {
     Safe,

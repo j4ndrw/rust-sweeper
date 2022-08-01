@@ -1,4 +1,4 @@
-use crate::tile::{Tile, TileKind};
+use crate::tile::{Tile, TileKind, TileSignedPosition};
 use rand::thread_rng;
 use std::fmt;
 
@@ -9,14 +9,14 @@ type TileMatrix = Vec<Vec<Tile>>;
 trait TileMatrixTrait {
     fn create_empty(rows: usize, cols: usize) -> Self;
     fn populate_bombs(
-        self,
+        &self,
         rows: usize,
         cols: usize,
         bomb_percentage: f32,
         total_num_of_bombs: usize,
         prev_tile_matrix: Option<TileMatrix>,
     ) -> Self;
-    fn populate_neighbours(self) -> Self;
+    fn populate_neighbours(&self) -> Self;
     fn check_bounds(self: Self, x: i32, y: i32) -> Option<TileMatrix>;
 }
 
@@ -40,7 +40,7 @@ impl TileMatrixTrait for TileMatrix {
     }
 
     fn populate_bombs(
-        self,
+        &self,
         rows: usize,
         cols: usize,
         bomb_percentage: f32,
@@ -85,12 +85,25 @@ impl TileMatrixTrait for TileMatrix {
         }
     }
 
-    fn populate_neighbours(self) -> Self {
-        fn get_tile(tile_matrix: TileMatrix, x: i32, y: i32) -> Option<Tile> {
-            tile_matrix
+    fn populate_neighbours(&self) -> Self {
+        let get_tile = |(x, y): TileSignedPosition| -> Option<Tile> {
+            self.to_vec()
                 .check_bounds(x, y)
                 .and_then(|matrix| Some(matrix[x as usize][y as usize].clone()))
-        }
+        };
+
+        let replace_empty = |(x, y): TileSignedPosition| -> Tile {
+            let neighbouring_bombs: Vec<Tile> = (x - 1..=x + 1)
+                .flat_map(|i| (y - 1..=y + 1).flat_map(move |j| get_tile((i, j))))
+                .filter(|tile| tile.kind == TileKind::Bomb)
+                .collect();
+
+            if neighbouring_bombs.len() == 0 {
+                Tile::new_empty()
+            } else {
+                Tile::new_safe(neighbouring_bombs.into_iter().collect())
+            }
+        };
 
         self.iter()
             .enumerate()
@@ -99,40 +112,7 @@ impl TileMatrixTrait for TileMatrix {
                     .iter()
                     .enumerate()
                     .map(|(col, tile)| match tile.kind {
-                        TileKind::Empty => {
-                            let (x, y) = (row as i32, col as i32);
-
-                            let top_left = get_tile(self.clone(), x - 1, y - 1);
-                            let top = get_tile(self.clone(), x - 1, y);
-                            let top_right = get_tile(self.clone(), x - 1, y + 1);
-                            let right = get_tile(self.clone(), x, y + 1);
-                            let bottom_right = get_tile(self.clone(), x + 1, y + 1);
-                            let bottom = get_tile(self.clone(), x + 1, y);
-                            let bottom_left = get_tile(self.clone(), x + 1, y - 1);
-                            let left = get_tile(self.clone(), x, y - 1);
-
-                            let neighbouring_bombs: Vec<Tile> = vec![
-                                top_left,
-                                top,
-                                top_right,
-                                right,
-                                bottom_right,
-                                bottom,
-                                bottom_left,
-                                left,
-                            ]
-                            .into_iter()
-                            .filter(|tile| tile.is_some())
-                            .map(|tile| tile.unwrap())
-                            .filter(|tile| tile.kind == TileKind::Bomb)
-                            .collect();
-
-                            if neighbouring_bombs.len() == 0 {
-                                Tile::new_empty()
-                            } else {
-                                Tile::new_safe(neighbouring_bombs.into_iter().collect())
-                            }
-                        }
+                        TileKind::Empty => replace_empty((row as i32, col as i32)),
                         _ => tile.clone(),
                     })
                     .collect()
@@ -141,7 +121,6 @@ impl TileMatrixTrait for TileMatrix {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Field {
     rows: usize,
@@ -149,7 +128,6 @@ pub struct Field {
     field: TileMatrix,
 }
 
-#[allow(unused_must_use)]
 impl fmt::Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tiles in self.field.iter() {
@@ -162,7 +140,6 @@ impl fmt::Display for Field {
     }
 }
 
-#[allow(dead_code)]
 impl Field {
     pub fn create(rows: usize, cols: usize) -> Self {
         let bomb_percentage: f32 = 0.35; // 35% chance the tile is a bomb
