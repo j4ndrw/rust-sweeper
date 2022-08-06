@@ -17,11 +17,13 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let sweeper = Sweeper::new(match args.difficulty {
+    let mut sweeper = Sweeper::new(match args.difficulty {
         0 => Difficulty::Easy,
         1 => Difficulty::Medium,
         _ => Difficulty::Hard,
     });
+
+    sweeper.field.populate((5, 5));
 
     println!("{}", sweeper.field);
 }

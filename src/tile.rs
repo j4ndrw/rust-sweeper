@@ -31,15 +31,15 @@ impl Tile {
     }
 
     pub fn new_empty() -> Self {
-        Self::new(TileKind::Empty, vec![], true)
+        Self::new(TileKind::Empty, vec![], false)
     }
 
     pub fn new_safe(neighbouring_bombs: Vec<Tile>) -> Self {
-        Self::new(TileKind::Safe, neighbouring_bombs, true)
+        Self::new(TileKind::Safe, neighbouring_bombs, false)
     }
 
     pub fn new_bomb() -> Self {
-        Self::new(TileKind::Bomb, vec![], true)
+        Self::new(TileKind::Bomb, vec![], false)
     }
 
     pub fn reveal(&mut self) {
@@ -60,11 +60,11 @@ impl Tile {
 
     pub fn repr(&self) -> String {
         match self.flagged {
-            true => " ❔ ".to_string(),
+            true => " ? ".to_string(),
             _ => match self.revealed {
                 false => " · ".to_string(),
                 true => match self.kind {
-                    TileKind::Bomb => " ❌ ".to_string(),
+                    TileKind::Bomb => " & ".to_string(),
                     TileKind::Empty => "   ".to_string(),
                     TileKind::Safe => format!(" {} ", self.neighbouring_bombs.len()),
                 },

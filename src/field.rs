@@ -5,12 +5,14 @@ use std::fmt;
 use rand::Rng;
 
 type TileMatrix = Vec<Vec<Tile>>;
+type Position = (usize, usize);
 
 trait TileMatrixTrait {
     fn create_empty(rows: usize, cols: usize) -> Self;
     fn check_bounds(self: Self, x: i32, y: i32) -> Option<TileMatrix>;
     fn populate_bombs(
         &self,
+        empty_point: Position,
         rows: usize,
         cols: usize,
         bombs: usize,
@@ -43,6 +45,7 @@ impl TileMatrixTrait for TileMatrix {
 
     fn populate_bombs(
         &self,
+        empty_point: Position,
         rows: usize,
         cols: usize,
         bombs: usize,
@@ -54,15 +57,17 @@ impl TileMatrixTrait for TileMatrix {
         let tile_matrix = prev_tile_matrix
             .unwrap_or(Self::create_empty(rows, cols))
             .into_iter()
-            .map(|tiles| {
+            .enumerate()
+            .map(|(row, tiles)| {
                 tiles
                     .into_iter()
-                    .map(|tile| match bombs - bombs_populated {
+                    .enumerate()
+                    .map(|(col, tile)| match bombs - bombs_populated {
                         0 => tile,
                         _ => {
                             let is_bomb =
                                 (thread_rng().gen_range(0.0..1.0)) <= bomb_generation_frequency;
-                            if !is_bomb {
+                            if !is_bomb || (row, col) == empty_point {
                                 tile
                             } else {
                                 bombs_populated += 1;
@@ -76,7 +81,13 @@ impl TileMatrixTrait for TileMatrix {
 
         match bombs - bombs_populated {
             0 => tile_matrix,
-            _ => self.populate_bombs(rows, cols, bombs - bombs_populated, Some(tile_matrix)),
+            _ => self.populate_bombs(
+                empty_point,
+                rows,
+                cols,
+                bombs - bombs_populated,
+                Some(tile_matrix),
+            ),
         }
     }
 
@@ -119,6 +130,7 @@ impl TileMatrixTrait for TileMatrix {
 pub struct Field {
     rows: usize,
     cols: usize,
+    bombs: usize,
     field: TileMatrix,
 }
 
@@ -139,9 +151,15 @@ impl Field {
         Self {
             rows,
             cols,
-            field: TileMatrix::new()
-                .populate_bombs(rows, cols, bombs, None)
-                .populate_neighbours(),
+            bombs,
+            field: TileMatrix::new(),
         }
+    }
+
+    pub fn populate(&mut self, starting_point: Position) {
+        self.field = self
+            .field
+            .populate_bombs(starting_point, self.rows, self.cols, self.bombs, None)
+            .populate_neighbours()
     }
 }
