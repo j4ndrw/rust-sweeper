@@ -13,8 +13,7 @@ trait TileMatrixTrait {
         &self,
         rows: usize,
         cols: usize,
-        bomb_percentage: f32,
-        total_num_of_bombs: usize,
+        bombs: usize,
         prev_tile_matrix: Option<TileMatrix>,
     ) -> Self;
     fn populate_neighbours(&self) -> Self;
@@ -30,11 +29,13 @@ impl TileMatrixTrait for TileMatrix {
 
     fn check_bounds(self, x: i32, y: i32) -> Option<TileMatrix> {
         let lower_bound = 0;
-        let upper_bound = (self.len() - 1) as i32;
+        let row_upper_bound = (self.len() - 1) as i32;
+        let col_upper_bound = (self[0].len() - 1) as i32;
 
-        let is_within_bounds = |coordinate| lower_bound <= coordinate && coordinate <= upper_bound;
+        let is_x_within_bounds = lower_bound <= x && x <= row_upper_bound;
+        let is_y_within_bounds = lower_bound <= y && y <= col_upper_bound;
 
-        match is_within_bounds(x) && is_within_bounds(y) {
+        match is_x_within_bounds && is_y_within_bounds {
             true => Some(self),
             false => None,
         }
@@ -44,10 +45,10 @@ impl TileMatrixTrait for TileMatrix {
         &self,
         rows: usize,
         cols: usize,
-        bomb_percentage: f32,
-        total_num_of_bombs: usize,
+        bombs: usize,
         prev_tile_matrix: Option<TileMatrix>,
     ) -> Self {
+        let bomb_generation_frequency = 0.15; //15% frequency
         let mut bombs_populated = 0;
 
         let tile_matrix = prev_tile_matrix
@@ -56,10 +57,11 @@ impl TileMatrixTrait for TileMatrix {
             .map(|tiles| {
                 tiles
                     .into_iter()
-                    .map(|tile| match total_num_of_bombs - bombs_populated {
+                    .map(|tile| match bombs - bombs_populated {
                         0 => tile,
                         _ => {
-                            let is_bomb = (thread_rng().gen_range(0.0..1.0)) <= bomb_percentage;
+                            let is_bomb =
+                                (thread_rng().gen_range(0.0..1.0)) <= bomb_generation_frequency;
                             if !is_bomb {
                                 tile
                             } else {
@@ -72,15 +74,9 @@ impl TileMatrixTrait for TileMatrix {
             })
             .collect();
 
-        match total_num_of_bombs - bombs_populated {
+        match bombs - bombs_populated {
             0 => tile_matrix,
-            _ => self.populate_bombs(
-                rows,
-                cols,
-                bomb_percentage,
-                total_num_of_bombs - bombs_populated,
-                Some(tile_matrix),
-            ),
+            _ => self.populate_bombs(rows, cols, bombs - bombs_populated, Some(tile_matrix)),
         }
     }
 
@@ -130,7 +126,7 @@ impl fmt::Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tiles in self.field.iter() {
             for tile in tiles {
-                write!(f, "{}", &*tile.repr);
+                write!(f, "{}", &*tile.repr());
             }
             writeln!(f, "");
         }
@@ -139,15 +135,12 @@ impl fmt::Display for Field {
 }
 
 impl Field {
-    pub fn create(rows: usize, cols: usize) -> Self {
-        let bomb_percentage: f32 = 0.35; // 35% chance the tile is a bomb
-        let total_num_of_bombs = (((rows * cols) as f32) * bomb_percentage) as usize;
-
+    pub fn create(rows: usize, cols: usize, bombs: usize) -> Self {
         Self {
             rows,
             cols,
             field: TileMatrix::new()
-                .populate_bombs(rows, cols, bomb_percentage, total_num_of_bombs, None)
+                .populate_bombs(rows, cols, bombs, None)
                 .populate_neighbours(),
         }
     }

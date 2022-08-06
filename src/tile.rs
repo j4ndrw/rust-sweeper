@@ -13,7 +13,6 @@ pub struct Tile {
     pub neighbouring_bombs: Vec<Tile>,
     pub revealed: bool,
     pub flagged: bool,
-    pub repr: String,
 }
 
 impl Tile {
@@ -23,24 +22,11 @@ impl Tile {
             _ => kind,
         };
 
-        let num_neighbouring_bombs = neighbouring_bombs.clone().len();
-        let repr = match revealed {
-            false => " · ".to_string(),
-            true => match checked_tile_kind {
-                TileKind::Bomb => " & ".to_string(),
-                TileKind::Empty => "   ".to_string(),
-                TileKind::Safe => {
-                    format!(" {} ", num_neighbouring_bombs)
-                }
-            },
-        };
-
         Self {
             kind: checked_tile_kind,
             neighbouring_bombs,
             revealed,
             flagged: false,
-            repr,
         }
     }
 
@@ -70,5 +56,19 @@ impl Tile {
 
     pub fn unflag(&mut self) {
         self.flagged = false;
+    }
+
+    pub fn repr(&self) -> String {
+        match self.flagged {
+            true => " ❔ ".to_string(),
+            _ => match self.revealed {
+                false => " · ".to_string(),
+                true => match self.kind {
+                    TileKind::Bomb => " ❌ ".to_string(),
+                    TileKind::Empty => "   ".to_string(),
+                    TileKind::Safe => format!(" {} ", self.neighbouring_bombs.len()),
+                },
+            }
+        }
     }
 }
