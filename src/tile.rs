@@ -13,6 +13,7 @@ pub struct Tile {
     pub neighbouring_bombs: Vec<Tile>,
     pub revealed: bool,
     pub flagged: bool,
+    pub selected: bool,
 }
 
 impl Tile {
@@ -27,6 +28,7 @@ impl Tile {
             neighbouring_bombs,
             revealed,
             flagged: false,
+            selected: false,
         }
     }
 
@@ -58,17 +60,33 @@ impl Tile {
         self.flagged = false;
     }
 
+    pub fn select(&self) -> Self {
+        let mut new_tile = self.clone();
+        new_tile.selected = true;
+        new_tile
+    }
+
+    pub fn deselect(&self) -> Self {
+        let mut new_tile = self.clone();
+        new_tile.selected = false;
+        new_tile
+    }
+
     pub fn repr(&self) -> String {
         match self.flagged {
-            true => " ? ".to_string(),
+            true => "?".to_string(),
             _ => match self.revealed {
-                false => " · ".to_string(),
+                false => "·".to_string(),
                 true => match self.kind {
-                    TileKind::Bomb => " & ".to_string(),
-                    TileKind::Empty => "   ".to_string(),
-                    TileKind::Safe => format!(" {} ", self.neighbouring_bombs.len()),
+                    TileKind::Bomb => "&".to_string(),
+                    TileKind::Empty => " ".to_string(),
+                    TileKind::Safe => format!("{}", self.neighbouring_bombs.len()),
                 },
-            }
+            },
         }
+    }
+
+    pub fn padded_repr(&self) -> String {
+        format!(" {} ", self.repr())
     }
 }

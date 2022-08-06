@@ -128,8 +128,8 @@ impl TileMatrixTrait for TileMatrix {
 
 #[derive(Debug)]
 pub struct Field {
-    rows: usize,
-    cols: usize,
+    pub rows: usize,
+    pub cols: usize,
     bombs: usize,
     field: TileMatrix,
 }
@@ -138,11 +138,14 @@ impl fmt::Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tiles in self.field.iter() {
             for tile in tiles {
-                write!(f, "{}", &*tile.repr());
+                match tile.selected {
+                    true => write!(f, "[{}]", tile.repr()),
+                    false => write!(f, "{}", tile.padded_repr()),
+                };
             }
             writeln!(f, "");
         }
-        write!(f, "")
+        writeln!(f, "")
     }
 }
 
@@ -161,5 +164,27 @@ impl Field {
             .field
             .populate_bombs(starting_point, self.rows, self.cols, self.bombs, None)
             .populate_neighbours()
+    }
+
+    pub fn select(&mut self, tile_position: Position) {
+        self.field = self
+            .field
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(row, tiles)| {
+                tiles
+                    .into_iter()
+                    .enumerate()
+                    .map(|(col, tile)| {
+                        if tile_position == (row, col) {
+                            tile.select()
+                        } else {
+                            tile.deselect()
+                        }
+                    })
+                    .collect()
+            })
+            .collect::<TileMatrix>();
     }
 }
