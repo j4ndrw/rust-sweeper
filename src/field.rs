@@ -8,6 +8,7 @@ type TileMatrix = Vec<Vec<Tile>>;
 
 trait TileMatrixTrait {
     fn create_empty(rows: usize, cols: usize) -> Self;
+    fn check_bounds(self: Self, x: i32, y: i32) -> Option<TileMatrix>;
     fn populate_bombs(
         &self,
         rows: usize,
@@ -17,26 +18,26 @@ trait TileMatrixTrait {
         prev_tile_matrix: Option<TileMatrix>,
     ) -> Self;
     fn populate_neighbours(&self) -> Self;
-    fn check_bounds(self: Self, x: i32, y: i32) -> Option<TileMatrix>;
 }
 
 impl TileMatrixTrait for TileMatrix {
-    fn check_bounds(self, x: i32, y: i32) -> Option<TileMatrix> {
-        let lower_bound = 0;
-        let upper_bound = (self.len() - 1) as i32;
-
-        if x < lower_bound || y < lower_bound || x > upper_bound || y > upper_bound {
-            None
-        } else {
-            Some(self)
-        }
-    }
-
     fn create_empty(rows: usize, cols: usize) -> Self {
         let make_row = || (0..cols).map(|_| Tile::new_empty()).collect();
         let field = (0..rows).map(|_| make_row()).collect();
 
         field
+    }
+
+    fn check_bounds(self, x: i32, y: i32) -> Option<TileMatrix> {
+        let lower_bound = 0;
+        let upper_bound = (self.len() - 1) as i32;
+
+        let is_within_bounds = |coordinate| lower_bound <= coordinate && coordinate <= upper_bound;
+
+        match is_within_bounds(x) && is_within_bounds(y) {
+            true => Some(self),
+            false => None,
+        }
     }
 
     fn populate_bombs(
@@ -55,10 +56,9 @@ impl TileMatrixTrait for TileMatrix {
             .map(|tiles| {
                 tiles
                     .into_iter()
-                    .map(|tile| {
-                        if total_num_of_bombs - bombs_populated == 0 {
-                            tile
-                        } else {
+                    .map(|tile| match total_num_of_bombs - bombs_populated {
+                        0 => tile,
+                        _ => {
                             let is_bomb = (thread_rng().gen_range(0.0..1.0)) <= bomb_percentage;
                             if !is_bomb {
                                 tile
@@ -72,16 +72,15 @@ impl TileMatrixTrait for TileMatrix {
             })
             .collect();
 
-        if total_num_of_bombs - bombs_populated == 0 {
-            tile_matrix
-        } else {
-            self.populate_bombs(
+        match total_num_of_bombs - bombs_populated {
+            0 => tile_matrix,
+            _ => self.populate_bombs(
                 rows,
                 cols,
                 bomb_percentage,
                 total_num_of_bombs - bombs_populated,
                 Some(tile_matrix),
-            )
+            ),
         }
     }
 
@@ -98,10 +97,9 @@ impl TileMatrixTrait for TileMatrix {
                 .filter(|tile| tile.kind == TileKind::Bomb)
                 .collect();
 
-            if neighbouring_bombs.len() == 0 {
-                Tile::new_empty()
-            } else {
-                Tile::new_safe(neighbouring_bombs.into_iter().collect())
+            match neighbouring_bombs.len() {
+                0 => Tile::new_empty(),
+                _ => Tile::new_safe(neighbouring_bombs.into_iter().collect()),
             }
         };
 

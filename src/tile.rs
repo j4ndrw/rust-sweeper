@@ -18,26 +18,21 @@ pub struct Tile {
 
 impl Tile {
     fn new(kind: TileKind, neighbouring_bombs: Vec<Tile>, revealed: bool) -> Self {
-        let checked_tile_kind: TileKind = if kind == TileKind::Safe && neighbouring_bombs.len() == 0
-        {
-            TileKind::Empty
-        } else {
-            kind
+        let checked_tile_kind = match (kind, neighbouring_bombs.len()) {
+            (TileKind::Safe, 0) => TileKind::Empty,
+            _ => kind,
         };
 
         let num_neighbouring_bombs = neighbouring_bombs.clone().len();
-        let repr = {
-            if revealed {
-                match checked_tile_kind {
-                    TileKind::Bomb => " & ".to_string(),
-                    TileKind::Empty => "   ".to_string(),
-                    TileKind::Safe => {
-                        format!(" {} ", num_neighbouring_bombs)
-                    }
+        let repr = match revealed {
+            false => " · ".to_string(),
+            true => match checked_tile_kind {
+                TileKind::Bomb => " & ".to_string(),
+                TileKind::Empty => "   ".to_string(),
+                TileKind::Safe => {
+                    format!(" {} ", num_neighbouring_bombs)
                 }
-            } else {
-                " · ".to_string()
-            }
+            },
         };
 
         Self {
