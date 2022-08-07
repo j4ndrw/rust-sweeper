@@ -25,6 +25,7 @@ pub enum Difficulty {
     Easy,
     Medium,
     Hard,
+    Nighthmare
 }
 
 #[allow(dead_code)]
@@ -52,6 +53,7 @@ impl Sweeper {
                     Difficulty::Easy => Field::create(9, 9, 10),
                     Difficulty::Medium => Field::create(16, 16, 40),
                     Difficulty::Hard => Field::create(16, 30, 99),
+                    Difficulty::Nighthmare => Field::create(25, 55, 500),
                 }
             },
         }
@@ -173,6 +175,14 @@ impl Sweeper {
             Key::Alt('s') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down, 2),
             Key::Alt('a') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left, 2),
             Key::Alt('d') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right, 2),
+            Key::Char('i') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up, 1),
+            Key::Char('k') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down, 1),
+            Key::Char('j') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left, 1),
+            Key::Char('l') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right, 1),
+            Key::Alt('i') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up, 2),
+            Key::Alt('k') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down, 2),
+            Key::Alt('j') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left, 2),
+            Key::Alt('l') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right, 2),
             _ => sweeper_cursor,
         };
 

@@ -22,7 +22,8 @@ USAGE:
 # Difficulties
 - 0 is the easiest (9x9 board with 10 bombs)
 - 1 is medium (16x16 board with 40 bombs)
-- 2 is the hardest (30x16 board with 99 bombs)
+- 2 is hard (30x16 board with 99 bombs)
+- 3 is nightmare (25x55 board with 500 bombs)
 
 # Controls
 - `WSAD` for moving the cursor in a single step

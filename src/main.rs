@@ -34,7 +34,8 @@ fn main() {
     let mut sweeper = Sweeper::new(match args.difficulty {
         0 => Difficulty::Easy,
         1 => Difficulty::Medium,
-        _ => Difficulty::Hard,
+        2 => Difficulty::Hard,
+        _ => Difficulty::Nighthmare,
     });
 
     let mut cursor = (0, 0);
