@@ -29,7 +29,7 @@ impl TileMatrixTrait for TileMatrix {
     fn create_empty(rows: usize, cols: usize) -> Self {
         (0..rows)
             .map(|row| (0..cols).map(|col| Tile::new_empty((row, col))).collect())
-            .collect()
+            .collect::<Self>()
     }
 
     fn check_bounds(self, position: UnsafePosition) -> Option<TileMatrix> {
@@ -59,13 +59,13 @@ impl TileMatrixTrait for TileMatrix {
             .flat_map(|i| {
                 (position.1 - 1..=position.1 + 1).flat_map(move |j| self.get_tile((i, j)))
             })
-            .filter(|tile| tile.position != to_safe_position(position))
+            .filter(|t| t.position != to_safe_position(position))
             .collect()
     }
 
     fn populate_bombs(
         &self,
-        empty_point: Position,
+        selected_point: Position,
         rows: usize,
         cols: usize,
         bombs: usize,
@@ -87,17 +87,19 @@ impl TileMatrixTrait for TileMatrix {
                         _ => {
                             let is_bomb =
                                 (thread_rng().gen_range(0.0..1.0)) <= bomb_generation_frequency;
-                            if !is_bomb
-                                || (row, col) == empty_point
-                                || tile
-                                    .neighbours
-                                    .iter()
-                                    .any(|neighbour| neighbour.position == empty_point)
-                            {
-                                tile
-                            } else {
-                                bombs_populated += 1;
-                                Tile::new_bomb((row, col))
+
+                            let is_selected_point = (row, col) == selected_point
+                                || tile.neighbours.iter().any(|t| t.position == selected_point);
+
+                            match is_selected_point {
+                                true => Tile::new_empty((row, col)),
+                                false => match is_bomb {
+                                    false => tile,
+                                    true => {
+                                        bombs_populated += 1;
+                                        Tile::new_bomb((row, col))
+                                    }
+                                },
                             }
                         }
                     })
@@ -108,7 +110,7 @@ impl TileMatrixTrait for TileMatrix {
         match bombs - bombs_populated {
             0 => tile_matrix,
             _ => self.populate_bombs(
-                empty_point,
+                selected_point,
                 rows,
                 cols,
                 bombs - bombs_populated,
@@ -160,7 +162,7 @@ impl TileMatrixTrait for TileMatrix {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Field {
     pub rows: usize,
     pub cols: usize,
@@ -193,11 +195,15 @@ impl Field {
         }
     }
 
-    pub fn populate(&mut self, starting_point: Position) {
-        self.tile_matrix = self
-            .tile_matrix
-            .populate_bombs(starting_point, self.rows, self.cols, self.bombs, None)
-            .populate_neighbours(true)
+    pub fn populate(&self, starting_point: Position) -> Self {
+        Self {
+            tile_matrix: self
+                .tile_matrix
+                .clone()
+                .populate_bombs(starting_point, self.rows, self.cols, self.bombs, None)
+                .populate_neighbours(true),
+            ..self.clone()
+        }
     }
 
     pub fn get_tile(&self, position: UnsafePosition) -> Option<Tile> {
@@ -209,7 +215,7 @@ impl Field {
     }
 
     pub fn apply_on_tile(
-        &mut self,
+        &self,
         tile_position: Position,
         map_selected: &dyn Fn(Tile) -> Tile,
         optional_map_rest: Option<&dyn Fn(Tile) -> Tile>,
@@ -236,41 +242,50 @@ impl Field {
             .collect()
     }
 
-    pub fn select(&mut self, tile_position: Position) {
-        self.tile_matrix = self.apply_on_tile(
-            tile_position,
-            &move |tile| tile.select(),
-            Some(&move |tile| tile.deselect()),
-        )
+    pub fn select(&self, tile_position: Position) -> Self {
+        Self {
+            tile_matrix: self.apply_on_tile(
+                tile_position,
+                &move |tile| tile.select(),
+                Some(&move |tile| tile.deselect()),
+            ),
+            ..self.clone()
+        }
     }
 
-    pub fn toggle_flag(&mut self, tile_position: Position) {
-        self.tile_matrix = self.apply_on_tile(
-            tile_position,
-            &move |tile| {
-                if tile.revealed {
-                    return tile;
-                }
-                match tile.flagged {
-                    true => tile.unflag(),
-                    false => tile.flag(),
-                }
-            },
-            None,
-        )
+    pub fn toggle_flag(&self, tile_position: Position) -> Self {
+        Self {
+            tile_matrix: self.apply_on_tile(
+                tile_position,
+                &move |tile| {
+                    if tile.revealed {
+                        return tile;
+                    }
+                    match tile.flagged {
+                        true => tile.unflag(),
+                        false => tile.flag(),
+                    }
+                },
+                None,
+            ),
+            ..self.clone()
+        }
     }
 
-    pub fn reveal(&mut self, tile_position: Position) {
-        self.tile_matrix = self.apply_on_tile(
-            tile_position,
-            &move |tile| {
-                if tile.revealed || tile.flagged {
-                    return tile;
-                }
+    pub fn reveal(&self, tile_position: Position) -> Self {
+        Self {
+            tile_matrix: self.apply_on_tile(
+                tile_position,
+                &move |tile| {
+                    if tile.revealed || tile.flagged {
+                        return tile;
+                    }
 
-                tile.reveal()
-            },
-            None,
-        )
+                    tile.reveal()
+                },
+                None,
+            ),
+            ..self.clone()
+        }
     }
 }

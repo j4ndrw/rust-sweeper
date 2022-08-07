@@ -18,35 +18,34 @@ pub struct Tile {
 }
 
 impl Tile {
-    fn new(kind: TileKind, neighbours: Vec<Tile>, revealed: bool, position: Position) -> Self {
+    fn new(kind: TileKind, neighbours: Vec<Tile>, position: Position) -> Self {
         Self {
             kind: match (kind, neighbours.len()) {
                 (TileKind::Safe(0), 0) => TileKind::Empty,
                 _ => kind,
             },
             neighbours,
-            revealed,
+            position,
+            revealed: false,
             flagged: false,
             selected: false,
-            position,
         }
     }
 
     pub fn new_empty(position: Position) -> Self {
-        Self::new(TileKind::Empty, vec![], false, position)
+        Self::new(TileKind::Empty, vec![], position)
     }
 
     pub fn new_safe(position: Position, neighbours: Vec<Tile>) -> Self {
         Self::new(
             TileKind::Safe(neighbours.len().try_into().unwrap()),
             neighbours,
-            false,
             position,
         )
     }
 
     pub fn new_bomb(position: Position) -> Self {
-        Self::new(TileKind::Bomb, vec![], false, position)
+        Self::new(TileKind::Bomb, vec![], position)
     }
 
     pub fn set_neighbours(&self, neighbours: Vec<Tile>) -> Self {
@@ -98,7 +97,7 @@ impl Tile {
                 false => "·".to_string(),
                 true => match self.kind {
                     TileKind::Bomb => "◆".to_string(),
-                    TileKind::Empty => "◉".to_string(),
+                    TileKind::Empty => " ".to_string(),
                     TileKind::Safe(bombs) => format!("{}", bombs),
                 },
             },

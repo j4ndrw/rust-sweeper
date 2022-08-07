@@ -54,6 +54,6 @@ fn main() {
 
         stdout.lock().flush().unwrap();
 
-        thread::sleep(time::Duration::from_millis(10));
+        thread::sleep(time::Duration::from_millis(50));
     }
 }

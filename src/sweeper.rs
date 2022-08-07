@@ -55,11 +55,7 @@ impl Sweeper {
         }
     }
 
-    fn move_cursor(
-        &mut self,
-        current_cursor: UnsafePosition,
-        direction: CursorDirection,
-    ) -> Position {
+    fn move_cursor(&self, current_cursor: UnsafePosition, direction: CursorDirection) -> Position {
         let mut new_cursor = match direction {
             CursorDirection::Up => (current_cursor.0 - 1, current_cursor.1),
             CursorDirection::Down => (current_cursor.0 + 1, current_cursor.1),
@@ -87,57 +83,61 @@ impl Sweeper {
     fn reveal_recursively(
         &mut self,
         position: Position,
-        positions_to_ignore: Option<Vec<Position>>,
         is_revealing_after_populating: bool,
+        _max_depth: u8,
     ) {
+        if _max_depth == 0 {
+            return;
+        }
+
         let tile = self.field.get_tile(to_unsafe_position(position)).unwrap();
+        let neighbours = self.field.get_neighbours(to_unsafe_position(position));
+        let safe_neighbours = neighbours
+            .iter()
+            .filter(|t| t.kind != TileKind::Bomb && !t.flagged && !t.revealed);
+        let flagged_neighbours = neighbours
+            .iter()
+            .filter(|t| t.flagged)
+            .collect::<Vec<&Tile>>();
 
-        if tile.revealed {
-            return;
+        self.field = self.field.reveal(position);
+
+        match tile.revealed {
+            true => match tile.kind {
+                TileKind::Empty => safe_neighbours
+                    .for_each(|t| self.reveal_recursively(t.position, false, _max_depth - 1)),
+                TileKind::Safe(bomb_count) => {
+                    match flagged_neighbours.len() == bomb_count.try_into().unwrap() {
+                        true => neighbours
+                            .clone()
+                            .iter()
+                            .filter(|t| !t.flagged)
+                            .for_each(|t| self.field = self.field.reveal(t.position)),
+                        false => {}
+                    }
+                }
+                _ => {}
+            },
+            false => match is_revealing_after_populating {
+                true => safe_neighbours
+                    .for_each(|t| self.reveal_recursively(t.position, false, _max_depth - 1)),
+                false => match tile.kind {
+                    TileKind::Safe(bomb_count) => {
+                        match flagged_neighbours.len() == bomb_count.try_into().unwrap() {
+                            true => neighbours
+                                .clone()
+                                .iter()
+                                .filter(|t| !t.flagged)
+                                .for_each(|t| self.reveal_recursively(t.position, false, 1)),
+                            false => {}
+                        }
+                    }
+                    TileKind::Empty => safe_neighbours
+                        .for_each(|t| self.reveal_recursively(t.position, false, _max_depth - 1)),
+                    _ => {}
+                },
+            },
         }
-
-        self.field.reveal(position);
-
-        let neighbours = &self
-            .field
-            .get_neighbours(to_unsafe_position(position))
-            .into_iter()
-            .filter(|t| !t.revealed && t.kind != TileKind::Bomb);
-
-        let positions_to_process = &neighbours
-            .clone()
-            .filter(|t| {
-                !positions_to_ignore
-                    .clone()
-                    .unwrap_or_default()
-                    .contains(&t.position)
-                    || (is_revealing_after_populating && t.kind != TileKind::Bomb)
-            })
-            .map(|t| t.position);
-
-        if positions_to_ignore.is_some()
-            && positions_to_process
-                .clone()
-                .eq(neighbours.clone().map(|t| t.position).clone())
-        {
-            return;
-        }
-
-        let neighbour_positions_to_ignore: Vec<Position> = neighbours
-            .clone()
-            .flat_map(|t| t.neighbours)
-            .map(|t| t.position)
-            .chain(positions_to_ignore.clone().unwrap_or_default().into_iter())
-            .unique()
-            .collect();
-
-        positions_to_process.clone().for_each(|pos| {
-            self.reveal_recursively(
-                pos,
-                Some(neighbour_positions_to_ignore.clone()),
-                is_revealing_after_populating,
-            )
-        });
     }
 
     pub fn display_field(&self, stdout: &mut RawTerminal<Stdout>) {
@@ -148,7 +148,7 @@ impl Sweeper {
             termion::clear::All,
             self.field,
             termion::cursor::Goto(1, 1),
-            termion::cursor::SteadyBlock,
+            termion::cursor::Hide,
         )
         .unwrap();
         stdout.activate_raw_mode().unwrap();
@@ -165,23 +165,26 @@ impl Sweeper {
             _ => sweeper_cursor,
         };
 
-        self.field.select(sweeper_cursor);
+        self.field = self.field.select(sweeper_cursor);
 
         match key {
-            Key::Char('f') => self.field.toggle_flag(sweeper_cursor),
+            Key::Char('f') => {
+                self.field = self.field.toggle_flag(sweeper_cursor);
+                ()
+            }
             Key::Char('e') => {
-                if self
+                let are_all_fields_empty = self
                     .field
                     .tile_matrix
                     .clone()
                     .iter()
-                    .all(|tiles| tiles.into_iter().all(|tile| tile.kind == TileKind::Empty))
-                {
-                    self.field.populate(sweeper_cursor);
-                    self.reveal_recursively(sweeper_cursor, None, true);
-                } else {
-                    self.reveal_recursively(sweeper_cursor, None, false);
+                    .flatten()
+                    .all(|tile| tile.kind == TileKind::Empty);
+
+                if are_all_fields_empty {
+                    self.field = self.field.populate(sweeper_cursor);
                 }
+                self.reveal_recursively(sweeper_cursor, are_all_fields_empty, 5);
             }
             _ => {}
         };
@@ -211,18 +214,18 @@ mod tests {
 
         let sweeper_cursor = (3, 3);
 
-        if sweeper
+        let are_all_fields_empty = sweeper
             .field
             .tile_matrix
             .clone()
             .iter()
-            .all(|tiles| tiles.into_iter().all(|tile| tile.kind == TileKind::Empty))
-        {
-            sweeper.field.populate(sweeper_cursor);
-            sweeper.reveal_recursively(sweeper_cursor, None, true);
-        } else {
-            sweeper.reveal_recursively(sweeper_cursor, None, false);
+            .flatten()
+            .all(|tile| tile.kind == TileKind::Empty);
+
+        if are_all_fields_empty {
+            sweeper.field = sweeper.field.populate(sweeper_cursor);
         }
+        sweeper.reveal_recursively(sweeper_cursor, are_all_fields_empty, 5);
 
         sweeper.display_field(&mut stdout)
     }
