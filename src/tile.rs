@@ -19,13 +19,11 @@ pub struct Tile {
 
 impl Tile {
     fn new(kind: TileKind, neighbours: Vec<Tile>, revealed: bool, position: Position) -> Self {
-        let checked_tile_kind = match (kind, neighbours.len()) {
-            (TileKind::Safe, 0) => TileKind::Empty,
-            _ => kind,
-        };
-
         Self {
-            kind: checked_tile_kind,
+            kind: match (kind, neighbours.len()) {
+                (TileKind::Safe, 0) => TileKind::Empty,
+                _ => kind,
+            },
             neighbours,
             revealed,
             flagged: false,
