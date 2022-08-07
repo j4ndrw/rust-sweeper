@@ -1,4 +1,4 @@
-pub type TileSignedPosition = (i32, i32);
+use crate::sweeper::Position;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TileKind {
@@ -10,66 +10,82 @@ pub enum TileKind {
 #[derive(Debug, Clone)]
 pub struct Tile {
     pub kind: TileKind,
-    pub neighbouring_bombs: Vec<Tile>,
+    pub neighbours: Vec<Tile>,
     pub revealed: bool,
     pub flagged: bool,
     pub selected: bool,
+    pub position: Position,
 }
 
 impl Tile {
-    fn new(kind: TileKind, neighbouring_bombs: Vec<Tile>, revealed: bool) -> Self {
-        let checked_tile_kind = match (kind, neighbouring_bombs.len()) {
+    fn new(kind: TileKind, neighbours: Vec<Tile>, revealed: bool, position: Position) -> Self {
+        let checked_tile_kind = match (kind, neighbours.len()) {
             (TileKind::Safe, 0) => TileKind::Empty,
             _ => kind,
         };
 
         Self {
             kind: checked_tile_kind,
-            neighbouring_bombs,
+            neighbours,
             revealed,
             flagged: false,
             selected: false,
+            position,
         }
     }
 
-    pub fn new_empty() -> Self {
-        Self::new(TileKind::Empty, vec![], false)
+    pub fn new_empty(position: Position) -> Self {
+        Self::new(TileKind::Empty, vec![], false, position)
     }
 
-    pub fn new_safe(neighbouring_bombs: Vec<Tile>) -> Self {
-        Self::new(TileKind::Safe, neighbouring_bombs, false)
+    pub fn new_safe(position: Position, neighbours: Vec<Tile>) -> Self {
+        Self::new(TileKind::Safe, neighbours, false, position)
     }
 
-    pub fn new_bomb() -> Self {
-        Self::new(TileKind::Bomb, vec![], false)
+    pub fn new_bomb(position: Position) -> Self {
+        Self::new(TileKind::Bomb, vec![], false, position)
     }
 
-    pub fn reveal(&mut self) {
-        self.revealed = true;
+    pub fn set_neighbours(&self, neighbours: Vec<Tile>) -> Self {
+        Self {
+            neighbours,
+            ..self.clone()
+        }
     }
 
-    pub fn hide(&mut self) {
-        self.revealed = false;
+    pub fn reveal(&self) -> Self {
+        Self {
+            revealed: true,
+            ..self.clone()
+        }
     }
 
-    pub fn flag(&mut self) {
-        self.flagged = true;
+    pub fn flag(&self) -> Self {
+        Self {
+            flagged: true,
+            ..self.clone()
+        }
     }
 
-    pub fn unflag(&mut self) {
-        self.flagged = false;
+    pub fn unflag(&self) -> Self {
+        Self {
+            flagged: false,
+            ..self.clone()
+        }
     }
 
     pub fn select(&self) -> Self {
-        let mut new_tile = self.clone();
-        new_tile.selected = true;
-        new_tile
+        Self {
+            selected: true,
+            ..self.clone()
+        }
     }
 
     pub fn deselect(&self) -> Self {
-        let mut new_tile = self.clone();
-        new_tile.selected = false;
-        new_tile
+        Self {
+            selected: false,
+            ..self.clone()
+        }
     }
 
     pub fn repr(&self) -> String {
@@ -80,7 +96,7 @@ impl Tile {
                 true => match self.kind {
                     TileKind::Bomb => "&".to_string(),
                     TileKind::Empty => " ".to_string(),
-                    TileKind::Safe => format!("{}", self.neighbouring_bombs.len()),
+                    TileKind::Safe => format!("{}", self.neighbours.len()),
                 },
             },
         }

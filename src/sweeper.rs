@@ -6,9 +6,11 @@ use termion::raw::RawTerminal;
 
 use std::io::Write;
 
-use crate::field::Field;
+use crate::field::{Field, TileMatrix};
+use crate::tile::{Tile, TileKind};
 
-type Position = (i32, i32);
+pub type UnsafePosition = (i32, i32);
+pub type Position = (usize, usize);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Difficulty {
@@ -44,7 +46,11 @@ impl Sweeper {
         }
     }
 
-    fn move_cursor(&mut self, current_cursor: Position, direction: CursorDirection) -> Position {
+    fn move_cursor(
+        &mut self,
+        current_cursor: UnsafePosition,
+        direction: CursorDirection,
+    ) -> Position {
         let mut new_cursor = match direction {
             CursorDirection::Up => (current_cursor.0 - 1, current_cursor.1),
             CursorDirection::Down => (current_cursor.0 + 1, current_cursor.1),
@@ -66,7 +72,27 @@ impl Sweeper {
             new_cursor.1 = (self.field.cols as i32) - 1
         }
 
-        new_cursor
+        (
+            new_cursor.0.try_into().unwrap(),
+            new_cursor.1.try_into().unwrap(),
+        )
+    }
+
+    fn reveal_recursively(&mut self, position: Position) {
+        self.field.reveal(position);
+
+        let tile = self.field.get_tile((position.0 as i32, position.1 as i32));
+
+        let neighbours = tile.unwrap().neighbours.clone();
+
+        let safe_neighbours = neighbours
+            .into_iter()
+            .filter(|neighbour| neighbour.kind != TileKind::Bomb);
+
+        for neighbour_position in safe_neighbours.map(|neighbour| neighbour.position) {
+            println!("{:?}", neighbour_position);
+            self.reveal_recursively(neighbour_position);
+        }
     }
 
     pub fn display_field(&self, stdout: &mut RawTerminal<Stdout>) {
@@ -84,18 +110,37 @@ impl Sweeper {
     }
 
     pub fn tick(&mut self, key: &Key, mut sweeper_cursor: Position) -> (bool, Position) {
+        let unsafe_sweeper_cursor: UnsafePosition = (
+            sweeper_cursor.0.try_into().unwrap(),
+            sweeper_cursor.1.try_into().unwrap(),
+        );
         sweeper_cursor = match key {
-            Key::Char('w') => self.move_cursor(sweeper_cursor.clone(), CursorDirection::Up),
-            Key::Char('s') => self.move_cursor(sweeper_cursor.clone(), CursorDirection::Down),
-            Key::Char('a') => self.move_cursor(sweeper_cursor.clone(), CursorDirection::Left),
-            Key::Char('d') => self.move_cursor(sweeper_cursor.clone(), CursorDirection::Right),
+            Key::Char('w') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up),
+            Key::Char('s') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down),
+            Key::Char('a') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left),
+            Key::Char('d') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right),
             _ => sweeper_cursor,
         };
 
-        self.field.select((
-            (sweeper_cursor.0.try_into().unwrap()),
-            (sweeper_cursor.1.try_into().unwrap()),
-        ));
+        self.field.select(sweeper_cursor);
+
+        match key {
+            Key::Char('f') => self.field.toggle_flag(sweeper_cursor),
+            Key::Char('e') => {
+                if self
+                    .field
+                    .tile_matrix
+                    .clone()
+                    .iter()
+                    .all(|tiles| tiles.into_iter().all(|tile| tile.kind == TileKind::Empty))
+                {
+                    self.field.populate(sweeper_cursor);
+                }
+
+                self.reveal_recursively(sweeper_cursor);
+            }
+            _ => {}
+        };
 
         let should_exit = match key {
             Key::Char('q') | Key::Ctrl('c') => true,
@@ -103,5 +148,37 @@ impl Sweeper {
         };
 
         (should_exit, sweeper_cursor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::stdout;
+
+    use termion::raw::IntoRawMode;
+
+    use super::*;
+
+    #[test]
+    fn test_reveal_recursively() {
+        let mut stdout = stdout().into_raw_mode().unwrap();
+
+        let mut sweeper = Sweeper::new(Difficulty::Easy);
+
+        let sweeper_cursor = (5, 5);
+
+        if sweeper
+            .field
+            .tile_matrix
+            .clone()
+            .iter()
+            .all(|tiles| tiles.into_iter().all(|tile| tile.kind == TileKind::Empty))
+        {
+            sweeper.field.populate(sweeper_cursor);
+        }
+
+        sweeper.reveal_recursively(sweeper_cursor);
+
+        sweeper.display_field(&mut stdout)
     }
 }

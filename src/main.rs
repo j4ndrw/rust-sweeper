@@ -37,14 +37,11 @@ fn main() {
         _ => Difficulty::Hard,
     });
 
-    sweeper.field.populate((5, 5));
-
     let mut cursor = (0, 0);
     loop {
         sweeper.display_field(&mut stdout);
 
         let input = stdin.next();
-
 
         if let Some(Ok(key)) = input {
             let (should_exit, updated_cursor) = sweeper.tick(&key, cursor);

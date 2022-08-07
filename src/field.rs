@@ -1,15 +1,18 @@
-use crate::tile::{Tile, TileKind, TileSignedPosition};
+use crate::{
+    sweeper::{Position, UnsafePosition},
+    tile::{Tile, TileKind},
+};
 use rand::thread_rng;
 use std::fmt;
 
 use rand::Rng;
 
-type TileMatrix = Vec<Vec<Tile>>;
-type Position = (usize, usize);
+pub type TileMatrix = Vec<Vec<Tile>>;
 
 trait TileMatrixTrait {
     fn create_empty(rows: usize, cols: usize) -> Self;
-    fn check_bounds(self: Self, x: i32, y: i32) -> Option<TileMatrix>;
+    fn check_bounds(self, x: i32, y: i32) -> Option<TileMatrix>;
+    fn get_tile(&self, position: UnsafePosition) -> Option<Tile>;
     fn populate_bombs(
         &self,
         empty_point: Position,
@@ -18,15 +21,15 @@ trait TileMatrixTrait {
         bombs: usize,
         prev_tile_matrix: Option<TileMatrix>,
     ) -> Self;
-    fn populate_neighbours(&self) -> Self;
+    fn populate_neighbours(&self, with_bombs: bool) -> Self;
 }
 
 impl TileMatrixTrait for TileMatrix {
     fn create_empty(rows: usize, cols: usize) -> Self {
-        let make_row = || (0..cols).map(|_| Tile::new_empty()).collect();
-        let field = (0..rows).map(|_| make_row()).collect();
+        let make_row = |row: usize| (0..cols).map(|col| Tile::new_empty((row, col))).collect();
+        let field: Self = (0..rows).map(|row| make_row(row)).collect();
 
-        field
+        field.populate_neighbours(false)
     }
 
     fn check_bounds(self, x: i32, y: i32) -> Option<TileMatrix> {
@@ -41,6 +44,13 @@ impl TileMatrixTrait for TileMatrix {
             true => Some(self),
             false => None,
         }
+    }
+
+    fn get_tile(&self, position: UnsafePosition) -> Option<Tile> {
+        let (x, y) = position;
+        self.to_vec()
+            .check_bounds(x, y)
+            .and_then(|matrix| Some(matrix[x as usize][y as usize].clone()))
     }
 
     fn populate_bombs(
@@ -67,11 +77,17 @@ impl TileMatrixTrait for TileMatrix {
                         _ => {
                             let is_bomb =
                                 (thread_rng().gen_range(0.0..1.0)) <= bomb_generation_frequency;
-                            if !is_bomb || (row, col) == empty_point {
+                            if !is_bomb
+                                || (row, col) == empty_point
+                                || tile
+                                    .neighbours
+                                    .iter()
+                                    .any(|neighbour| neighbour.position == empty_point)
+                            {
                                 tile
                             } else {
                                 bombs_populated += 1;
-                                Tile::new_bomb()
+                                Tile::new_bomb((row, col))
                             }
                         }
                     })
@@ -91,36 +107,53 @@ impl TileMatrixTrait for TileMatrix {
         }
     }
 
-    fn populate_neighbours(&self) -> Self {
-        let get_tile = |(x, y): TileSignedPosition| -> Option<Tile> {
-            self.to_vec()
-                .check_bounds(x, y)
-                .and_then(|matrix| Some(matrix[x as usize][y as usize].clone()))
+    fn populate_neighbours(&self, with_bombs: bool) -> Self {
+        let get_neighbours = |(x, y): UnsafePosition| -> Vec<Tile> {
+            (x - 1..=x + 1)
+                .flat_map(|i| (y - 1..=y + 1).flat_map(move |j| self.get_tile((i, j))))
+                .collect()
         };
 
-        let replace_empty = |(x, y): TileSignedPosition| -> Tile {
-            let neighbouring_bombs: Vec<Tile> = (x - 1..=x + 1)
-                .flat_map(|i| (y - 1..=y + 1).flat_map(move |j| get_tile((i, j))))
+        let replace_empty = |neighbours: Vec<Tile>, position: UnsafePosition| {
+            let filtered_neighbours: Vec<Tile> = neighbours
+                .into_iter()
                 .filter(|tile| tile.kind == TileKind::Bomb)
                 .collect();
 
-            match neighbouring_bombs.len() {
-                0 => Tile::new_empty(),
-                _ => Tile::new_safe(neighbouring_bombs.into_iter().collect()),
+            match filtered_neighbours.len() {
+                0 => Tile::new_empty((position.0 as usize, position.1 as usize)),
+                _ => Tile::new_safe(
+                    (position.0 as usize, position.1 as usize),
+                    filtered_neighbours.into_iter().collect(),
+                ),
             }
         };
 
         self.iter()
             .enumerate()
             .map(|(row, tiles)| {
-                tiles
-                    .iter()
+                let mapped_tiles = tiles
+                    .into_iter()
                     .enumerate()
-                    .map(|(col, tile)| match tile.kind {
-                        TileKind::Empty => replace_empty((row as i32, col as i32)),
-                        _ => tile.clone(),
-                    })
-                    .collect()
+                    .map(|(col, tile)| {
+                        (
+                            col,
+                            tile.set_neighbours(get_neighbours((row as i32, col as i32))),
+                        )
+                    });
+                if !with_bombs {
+                    mapped_tiles.map(|(_, tile)| tile).collect()
+                } else {
+                    mapped_tiles
+                        .into_iter()
+                        .map(|(col, tile)| match tile.kind {
+                            TileKind::Empty => {
+                                replace_empty(tile.neighbours, (row as i32, col as i32))
+                            }
+                            _ => tile.clone(),
+                        })
+                        .collect()
+                }
             })
             .collect()
     }
@@ -131,12 +164,12 @@ pub struct Field {
     pub rows: usize,
     pub cols: usize,
     bombs: usize,
-    field: TileMatrix,
+    pub tile_matrix: TileMatrix,
 }
 
 impl fmt::Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for tiles in self.field.iter() {
+        for tiles in self.tile_matrix.iter() {
             for tile in tiles {
                 match tile.selected {
                     true => write!(f, "[{}]", tile.repr()),
@@ -155,20 +188,28 @@ impl Field {
             rows,
             cols,
             bombs,
-            field: TileMatrix::new(),
+            tile_matrix: TileMatrix::create_empty(rows, cols),
         }
     }
 
     pub fn populate(&mut self, starting_point: Position) {
-        self.field = self
-            .field
+        self.tile_matrix = self
+            .tile_matrix
             .populate_bombs(starting_point, self.rows, self.cols, self.bombs, None)
-            .populate_neighbours()
+            .populate_neighbours(true)
     }
 
-    pub fn select(&mut self, tile_position: Position) {
-        self.field = self
-            .field
+    pub fn get_tile(&self, position: UnsafePosition) -> Option<Tile> {
+        self.tile_matrix.get_tile(position)
+    }
+
+    pub fn apply_on_tile(
+        &mut self,
+        tile_position: Position,
+        map_selected: &dyn Fn(Tile) -> Tile,
+        optional_map_rest: Option<&dyn Fn(Tile) -> Tile>,
+    ) -> TileMatrix {
+        self.tile_matrix
             .clone()
             .into_iter()
             .enumerate()
@@ -178,13 +219,53 @@ impl Field {
                     .enumerate()
                     .map(|(col, tile)| {
                         if tile_position == (row, col) {
-                            tile.select()
-                        } else {
-                            tile.deselect()
+                            return map_selected(tile);
                         }
+                        if let Some(map_rest) = optional_map_rest {
+                            return map_rest(tile);
+                        }
+                        tile
                     })
                     .collect()
             })
-            .collect::<TileMatrix>();
+            .collect()
+    }
+
+    pub fn select(&mut self, tile_position: Position) {
+        self.tile_matrix = self.apply_on_tile(
+            tile_position,
+            &move |tile| tile.select(),
+            Some(&move |tile| tile.deselect()),
+        )
+    }
+
+    pub fn toggle_flag(&mut self, tile_position: Position) {
+        self.tile_matrix = self.apply_on_tile(
+            tile_position,
+            &move |tile| {
+                if tile.revealed {
+                    return tile;
+                }
+                match tile.flagged {
+                    true => tile.unflag(),
+                    false => tile.flag(),
+                }
+            },
+            None,
+        )
+    }
+
+    pub fn reveal(&mut self, tile_position: Position) {
+        self.tile_matrix = self.apply_on_tile(
+            tile_position,
+            &move |tile| {
+                if tile.revealed || tile.flagged {
+                    return tile;
+                }
+
+                tile.reveal()
+            },
+            None,
+        )
     }
 }
