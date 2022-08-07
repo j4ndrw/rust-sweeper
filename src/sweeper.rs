@@ -6,6 +6,8 @@ use termion::raw::RawTerminal;
 
 use std::io::Write;
 
+use itertools::Itertools;
+
 use crate::field::{Field, TileMatrix};
 use crate::tile::{Tile, TileKind};
 
@@ -82,18 +84,60 @@ impl Sweeper {
         to_safe_position(new_cursor)
     }
 
-    fn reveal_recursively(&mut self, position: Position) {
+    fn reveal_recursively(
+        &mut self,
+        position: Position,
+        positions_to_ignore: Option<Vec<Position>>,
+        is_revealing_after_populating: bool,
+    ) {
+        let tile = self.field.get_tile(to_unsafe_position(position)).unwrap();
+
+        if tile.revealed {
+            return;
+        }
+
         self.field.reveal(position);
 
-        self.field
-            .get_tile(to_unsafe_position(position))
-            .unwrap()
-            .neighbours
-            .clone()
+        let neighbours = &self
+            .field
+            .get_neighbours(to_unsafe_position(position))
             .into_iter()
-            .filter(|neighbour| neighbour.kind != TileKind::Bomb)
-            .map(|neighbour| neighbour.position)
-            .for_each(|position| self.reveal_recursively(position));
+            .filter(|t| !t.revealed && t.kind != TileKind::Bomb);
+
+        let positions_to_process = &neighbours
+            .clone()
+            .filter(|t| {
+                !positions_to_ignore
+                    .clone()
+                    .unwrap_or_default()
+                    .contains(&t.position)
+                    || (is_revealing_after_populating && t.kind != TileKind::Bomb)
+            })
+            .map(|t| t.position);
+
+        if positions_to_ignore.is_some()
+            && positions_to_process
+                .clone()
+                .eq(neighbours.clone().map(|t| t.position).clone())
+        {
+            return;
+        }
+
+        let neighbour_positions_to_ignore: Vec<Position> = neighbours
+            .clone()
+            .flat_map(|t| t.neighbours)
+            .map(|t| t.position)
+            .chain(positions_to_ignore.clone().unwrap_or_default().into_iter())
+            .unique()
+            .collect();
+
+        positions_to_process.clone().for_each(|pos| {
+            self.reveal_recursively(
+                pos,
+                Some(neighbour_positions_to_ignore.clone()),
+                is_revealing_after_populating,
+            )
+        });
     }
 
     pub fn display_field(&self, stdout: &mut RawTerminal<Stdout>) {
@@ -104,7 +148,7 @@ impl Sweeper {
             termion::clear::All,
             self.field,
             termion::cursor::Goto(1, 1),
-            termion::cursor::Hide,
+            termion::cursor::SteadyBlock,
         )
         .unwrap();
         stdout.activate_raw_mode().unwrap();
@@ -134,9 +178,10 @@ impl Sweeper {
                     .all(|tiles| tiles.into_iter().all(|tile| tile.kind == TileKind::Empty))
                 {
                     self.field.populate(sweeper_cursor);
+                    self.reveal_recursively(sweeper_cursor, None, true);
+                } else {
+                    self.reveal_recursively(sweeper_cursor, None, false);
                 }
-
-                self.reveal_recursively(sweeper_cursor);
             }
             _ => {}
         };
@@ -164,7 +209,7 @@ mod tests {
 
         let mut sweeper = Sweeper::new(Difficulty::Easy);
 
-        let sweeper_cursor = (5, 5);
+        let sweeper_cursor = (3, 3);
 
         if sweeper
             .field
@@ -174,9 +219,10 @@ mod tests {
             .all(|tiles| tiles.into_iter().all(|tile| tile.kind == TileKind::Empty))
         {
             sweeper.field.populate(sweeper_cursor);
+            sweeper.reveal_recursively(sweeper_cursor, None, true);
+        } else {
+            sweeper.reveal_recursively(sweeper_cursor, None, false);
         }
-
-        sweeper.reveal_recursively(sweeper_cursor);
 
         sweeper.display_field(&mut stdout)
     }

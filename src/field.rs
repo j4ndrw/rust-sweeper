@@ -1,5 +1,5 @@
 use crate::{
-    sweeper::{Position, UnsafePosition, to_safe_position},
+    sweeper::{to_safe_position, to_unsafe_position, Position, UnsafePosition},
     tile::{Tile, TileKind},
 };
 use rand::thread_rng;
@@ -11,8 +11,9 @@ pub type TileMatrix = Vec<Vec<Tile>>;
 
 trait TileMatrixTrait {
     fn create_empty(rows: usize, cols: usize) -> Self;
-    fn check_bounds(self, x: i32, y: i32) -> Option<TileMatrix>;
+    fn check_bounds(self, position: UnsafePosition) -> Option<TileMatrix>;
     fn get_tile(&self, position: UnsafePosition) -> Option<Tile>;
+    fn get_neighbours(&self, position: UnsafePosition) -> Vec<Tile>;
     fn populate_bombs(
         &self,
         empty_point: Position,
@@ -26,13 +27,14 @@ trait TileMatrixTrait {
 
 impl TileMatrixTrait for TileMatrix {
     fn create_empty(rows: usize, cols: usize) -> Self {
-        let make_row = |row: usize| (0..cols).map(|col| Tile::new_empty((row, col))).collect();
-        let field: Self = (0..rows).map(|row| make_row(row)).collect();
-
-        field.populate_neighbours(false)
+        (0..rows)
+            .map(|row| (0..cols).map(|col| Tile::new_empty((row, col))).collect())
+            .collect()
     }
 
-    fn check_bounds(self, x: i32, y: i32) -> Option<TileMatrix> {
+    fn check_bounds(self, position: UnsafePosition) -> Option<TileMatrix> {
+        let (x, y) = position;
+
         let lower_bound = 0;
         let row_upper_bound = (self.len() - 1) as i32;
         let col_upper_bound = (self[0].len() - 1) as i32;
@@ -47,10 +49,18 @@ impl TileMatrixTrait for TileMatrix {
     }
 
     fn get_tile(&self, position: UnsafePosition) -> Option<Tile> {
-        let (x, y) = position;
         self.to_vec()
-            .check_bounds(x, y)
-            .and_then(|matrix| Some(matrix[x as usize][y as usize].clone()))
+            .check_bounds(position)
+            .and_then(|matrix| Some(matrix[position.0 as usize][position.1 as usize].clone()))
+    }
+
+    fn get_neighbours(&self, position: UnsafePosition) -> Vec<Tile> {
+        (position.0 - 1..=position.0 + 1)
+            .flat_map(|i| {
+                (position.1 - 1..=position.1 + 1).flat_map(move |j| self.get_tile((i, j)))
+            })
+            .filter(|tile| tile.position != to_safe_position(position))
+            .collect()
     }
 
     fn populate_bombs(
@@ -108,12 +118,6 @@ impl TileMatrixTrait for TileMatrix {
     }
 
     fn populate_neighbours(&self, with_bombs: bool) -> Self {
-        let get_neighbours = |(x, y): UnsafePosition| -> Vec<Tile> {
-            (x - 1..=x + 1)
-                .flat_map(|i| (y - 1..=y + 1).flat_map(move |j| self.get_tile((i, j))))
-                .collect()
-        };
-
         let replace_empty = |neighbours: Vec<Tile>, position: UnsafePosition| {
             let filtered_neighbours: Vec<Tile> = neighbours
                 .into_iter()
@@ -132,15 +136,12 @@ impl TileMatrixTrait for TileMatrix {
         self.iter()
             .enumerate()
             .map(|(row, tiles)| {
-                let mapped_tiles = tiles
-                    .into_iter()
-                    .enumerate()
-                    .map(|(col, tile)| {
-                        (
-                            col,
-                            tile.set_neighbours(get_neighbours((row as i32, col as i32))),
-                        )
-                    });
+                let mapped_tiles = tiles.into_iter().enumerate().map(|(col, tile)| {
+                    (
+                        col,
+                        tile.set_neighbours(self.get_neighbours(to_unsafe_position((row, col)))),
+                    )
+                });
                 if !with_bombs {
                     mapped_tiles.map(|(_, tile)| tile).collect()
                 } else {
@@ -201,6 +202,10 @@ impl Field {
 
     pub fn get_tile(&self, position: UnsafePosition) -> Option<Tile> {
         self.tile_matrix.get_tile(position)
+    }
+
+    pub fn get_neighbours(&self, position: UnsafePosition) -> Vec<Tile> {
+        self.tile_matrix.get_neighbours(position)
     }
 
     pub fn apply_on_tile(

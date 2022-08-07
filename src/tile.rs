@@ -2,7 +2,7 @@ use crate::sweeper::Position;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TileKind {
-    Safe,
+    Safe(u8),
     Bomb,
     Empty,
 }
@@ -21,7 +21,7 @@ impl Tile {
     fn new(kind: TileKind, neighbours: Vec<Tile>, revealed: bool, position: Position) -> Self {
         Self {
             kind: match (kind, neighbours.len()) {
-                (TileKind::Safe, 0) => TileKind::Empty,
+                (TileKind::Safe(0), 0) => TileKind::Empty,
                 _ => kind,
             },
             neighbours,
@@ -37,7 +37,12 @@ impl Tile {
     }
 
     pub fn new_safe(position: Position, neighbours: Vec<Tile>) -> Self {
-        Self::new(TileKind::Safe, neighbours, false, position)
+        Self::new(
+            TileKind::Safe(neighbours.len().try_into().unwrap()),
+            neighbours,
+            false,
+            position,
+        )
     }
 
     pub fn new_bomb(position: Position) -> Self {
@@ -92,9 +97,9 @@ impl Tile {
             _ => match self.revealed {
                 false => "·".to_string(),
                 true => match self.kind {
-                    TileKind::Bomb => "&".to_string(),
-                    TileKind::Empty => " ".to_string(),
-                    TileKind::Safe => format!("{}", self.neighbours.len()),
+                    TileKind::Bomb => "◆".to_string(),
+                    TileKind::Empty => "◉".to_string(),
+                    TileKind::Safe(bombs) => format!("{}", bombs),
                 },
             },
         }
