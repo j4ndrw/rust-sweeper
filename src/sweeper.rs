@@ -85,15 +85,13 @@ impl Sweeper {
     fn reveal_recursively(&mut self, position: Position) {
         self.field.reveal(position);
 
-        let tile = self.field.get_tile(to_unsafe_position(position));
-
-        let neighbours = tile.unwrap().neighbours.clone();
-
-        let safe_neighbours = neighbours
+        self.field
+            .get_tile(to_unsafe_position(position))
+            .unwrap()
+            .neighbours
+            .clone()
             .into_iter()
-            .filter(|neighbour| neighbour.kind != TileKind::Bomb);
-
-        safe_neighbours
+            .filter(|neighbour| neighbour.kind != TileKind::Bomb)
             .map(|neighbour| neighbour.position)
             .for_each(|position| self.reveal_recursively(position));
     }
