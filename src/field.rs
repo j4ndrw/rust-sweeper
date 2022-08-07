@@ -162,6 +162,7 @@ impl TileMatrixTrait for TileMatrix {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Field {
     pub rows: usize,
@@ -175,16 +176,17 @@ impl fmt::Display for Field {
         for tiles in self.tile_matrix.iter() {
             for tile in tiles {
                 match tile.selected {
-                    true => write!(f, "[{}]", tile.repr()),
-                    false => write!(f, "{}", tile.padded_repr()),
+                    true => write!(f, "[{}]", tile.repr()).unwrap(),
+                    false => write!(f, "{}", tile.padded_repr()).unwrap(),
                 };
             }
-            writeln!(f, "");
+            writeln!(f, "").unwrap();
         }
         writeln!(f, "")
     }
 }
 
+#[allow(dead_code)]
 impl Field {
     pub fn create(rows: usize, cols: usize, bombs: usize) -> Self {
         Self {

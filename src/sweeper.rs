@@ -6,9 +6,7 @@ use termion::raw::RawTerminal;
 
 use std::io::Write;
 
-use itertools::Itertools;
-
-use crate::field::{Field, TileMatrix};
+use crate::field::Field;
 use crate::tile::{Tile, TileKind};
 
 pub type UnsafePosition = (i32, i32);
@@ -21,6 +19,7 @@ pub fn to_safe_position(pos: UnsafePosition) -> Position {
     (pos.0.try_into().unwrap(), pos.1.try_into().unwrap())
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Difficulty {
     Easy,
@@ -28,6 +27,7 @@ pub enum Difficulty {
     Hard,
 }
 
+#[allow(dead_code)]
 enum CursorDirection {
     Up,
     Down,
@@ -35,12 +35,14 @@ enum CursorDirection {
     Right,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Sweeper {
     difficulty: Difficulty,
     pub field: Field,
 }
 
+#[allow(dead_code)]
 impl Sweeper {
     pub fn new(difficulty: Difficulty) -> Self {
         Self {
