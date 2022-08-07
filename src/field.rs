@@ -297,7 +297,7 @@ impl Field {
                 .tile_matrix
                 .clone()
                 .into_iter()
-                .map(|tiles| tiles.into_iter().map(|t| t.reveal()).collect()).collect(),
+                .map(|tiles| tiles.into_iter().map(|t| t.unflag().reveal()).collect()).collect(),
             ..self.clone()
         }
     }
