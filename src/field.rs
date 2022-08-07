@@ -1,5 +1,5 @@
 use crate::{
-    sweeper::{Position, UnsafePosition},
+    sweeper::{Position, UnsafePosition, to_safe_position},
     tile::{Tile, TileKind},
 };
 use rand::thread_rng;
@@ -121,9 +121,9 @@ impl TileMatrixTrait for TileMatrix {
                 .collect();
 
             match filtered_neighbours.len() {
-                0 => Tile::new_empty((position.0 as usize, position.1 as usize)),
+                0 => Tile::new_empty(to_safe_position(position)),
                 _ => Tile::new_safe(
-                    (position.0 as usize, position.1 as usize),
+                    to_safe_position(position),
                     filtered_neighbours.into_iter().collect(),
                 ),
             }

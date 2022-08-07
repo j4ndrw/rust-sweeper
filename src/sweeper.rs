@@ -12,6 +12,13 @@ use crate::tile::{Tile, TileKind};
 pub type UnsafePosition = (i32, i32);
 pub type Position = (usize, usize);
 
+pub fn to_unsafe_position(pos: Position) -> UnsafePosition {
+    (pos.0.try_into().unwrap(), pos.1.try_into().unwrap())
+}
+pub fn to_safe_position(pos: UnsafePosition) -> Position {
+    (pos.0.try_into().unwrap(), pos.1.try_into().unwrap())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Difficulty {
     Easy,
@@ -72,16 +79,13 @@ impl Sweeper {
             new_cursor.1 = (self.field.cols as i32) - 1
         }
 
-        (
-            new_cursor.0.try_into().unwrap(),
-            new_cursor.1.try_into().unwrap(),
-        )
+        to_safe_position(new_cursor)
     }
 
     fn reveal_recursively(&mut self, position: Position) {
         self.field.reveal(position);
 
-        let tile = self.field.get_tile((position.0 as i32, position.1 as i32));
+        let tile = self.field.get_tile(to_unsafe_position(position));
 
         let neighbours = tile.unwrap().neighbours.clone();
 
@@ -89,10 +93,9 @@ impl Sweeper {
             .into_iter()
             .filter(|neighbour| neighbour.kind != TileKind::Bomb);
 
-        for neighbour_position in safe_neighbours.map(|neighbour| neighbour.position) {
-            println!("{:?}", neighbour_position);
-            self.reveal_recursively(neighbour_position);
-        }
+        safe_neighbours
+            .map(|neighbour| neighbour.position)
+            .for_each(|position| self.reveal_recursively(position));
     }
 
     pub fn display_field(&self, stdout: &mut RawTerminal<Stdout>) {
@@ -110,10 +113,8 @@ impl Sweeper {
     }
 
     pub fn tick(&mut self, key: &Key, mut sweeper_cursor: Position) -> (bool, Position) {
-        let unsafe_sweeper_cursor: UnsafePosition = (
-            sweeper_cursor.0.try_into().unwrap(),
-            sweeper_cursor.1.try_into().unwrap(),
-        );
+        let unsafe_sweeper_cursor: UnsafePosition = to_unsafe_position(sweeper_cursor);
+
         sweeper_cursor = match key {
             Key::Char('w') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up),
             Key::Char('s') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down),
