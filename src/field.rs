@@ -288,4 +288,15 @@ impl Field {
             ..self.clone()
         }
     }
+
+    pub fn game_over(&self) -> Self {
+        Self {
+            tile_matrix: self
+                .tile_matrix
+                .clone()
+                .into_iter()
+                .map(|tiles| tiles.into_iter().map(|t| t.reveal()).collect()).collect(),
+            ..self.clone()
+        }
+    }
 }

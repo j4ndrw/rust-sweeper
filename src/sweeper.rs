@@ -55,7 +55,12 @@ impl Sweeper {
         }
     }
 
-    fn move_cursor(&self, current_cursor: UnsafePosition, direction: CursorDirection, step: i32) -> Position {
+    fn move_cursor(
+        &self,
+        current_cursor: UnsafePosition,
+        direction: CursorDirection,
+        step: i32,
+    ) -> Position {
         let mut new_cursor = match direction {
             CursorDirection::Up => (current_cursor.0 - step, current_cursor.1),
             CursorDirection::Down => (current_cursor.0 + step, current_cursor.1),
@@ -116,7 +121,7 @@ impl Sweeper {
                         false => {}
                     }
                 }
-                _ => {}
+                TileKind::Bomb => self.field = self.field.game_over(),
             },
             false => match is_revealing_after_populating {
                 true => safe_neighbours
@@ -134,7 +139,7 @@ impl Sweeper {
                     }
                     TileKind::Empty => safe_neighbours
                         .for_each(|t| self.reveal_recursively(t.position, false, _max_depth - 1)),
-                    _ => {}
+                    TileKind::Bomb => self.field = self.field.game_over(),
                 },
             },
         }
@@ -176,7 +181,7 @@ impl Sweeper {
                 self.field = self.field.toggle_flag(sweeper_cursor);
                 ()
             }
-            Key::Char('e') => {
+            Key::Char(' ') | Key::Char('e') => {
                 let are_all_fields_empty = self
                     .field
                     .tile_matrix
