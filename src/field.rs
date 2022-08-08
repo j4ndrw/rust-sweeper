@@ -59,10 +59,14 @@ impl TileMatrixTrait for TileMatrix {
     }
 
     fn get_neighbours(&self, position: UnsafePosition) -> Vec<Tile> {
-        (position.0 - 1..=position.0 + 1)
-            .flat_map(|i| {
-                (position.1 - 1..=position.1 + 1)
-                    .flat_map(move |j| self.get_tile(&UnsafePosition(i, j)))
+        let row_range = position.0 - 1..=position.0 + 1;
+        let col_range = position.1 - 1..=position.1 + 1;
+
+        row_range
+            .flat_map(|row| {
+                col_range
+                    .clone()
+                    .flat_map(move |col| self.get_tile(&UnsafePosition(row, col)))
             })
             .filter(|t| t.position != position.to_safe())
             .collect()
@@ -155,9 +159,10 @@ impl TileMatrixTrait for TileMatrix {
                     mapped_tiles
                         .into_iter()
                         .map(|(col, tile)| match tile.kind {
-                            TileKind::Empty => {
-                                replace_empty(tile.neighbours, UnsafePosition(row as i32, col as i32))
-                            }
+                            TileKind::Empty => replace_empty(
+                                tile.neighbours,
+                                UnsafePosition(row as i32, col as i32),
+                            ),
                             _ => tile.clone(),
                         })
                         .collect()
@@ -207,7 +212,13 @@ impl Field {
             tile_matrix: self
                 .tile_matrix
                 .clone()
-                .populate_bombs(starting_point.clone(), self.rows, self.cols, self.bombs, None)
+                .populate_bombs(
+                    starting_point.clone(),
+                    self.rows,
+                    self.cols,
+                    self.bombs,
+                    None,
+                )
                 .populate_neighbours(true),
             ..self.clone()
         }
