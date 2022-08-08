@@ -27,9 +27,13 @@ trait TileMatrixTrait {
 
 impl TileMatrixTrait for TileMatrix {
     fn create_empty(rows: usize, cols: usize) -> Self {
-        (0..rows)
+        let row_range = 0..rows;
+        let col_range = 0..cols;
+
+        row_range
             .map(|row| {
-                (0..cols)
+                col_range
+                    .to_owned()
                     .map(|col| Tile::new_empty(Position(row, col)))
                     .collect()
             })
