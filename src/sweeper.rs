@@ -9,14 +9,20 @@ use std::io::Write;
 use crate::field::Field;
 use crate::tile::{Tile, TileKind};
 
-pub type UnsafePosition = (i32, i32);
-pub type Position = (usize, usize);
-
-pub fn to_unsafe_position(pos: Position) -> UnsafePosition {
-    (pos.0.try_into().unwrap(), pos.1.try_into().unwrap())
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnsafePosition(pub i32, pub i32);
+impl UnsafePosition {
+    pub fn to_safe(&self) -> Position {
+        Position(self.0.try_into().unwrap(), self.1.try_into().unwrap())
+    }
 }
-pub fn to_safe_position(pos: UnsafePosition) -> Position {
-    (pos.0.try_into().unwrap(), pos.1.try_into().unwrap())
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Position(pub usize, pub usize);
+impl Position {
+    pub fn to_unsafe(&self) -> UnsafePosition {
+        UnsafePosition(self.0.try_into().unwrap(), self.1.try_into().unwrap())
+    }
 }
 
 #[allow(dead_code)]
@@ -66,10 +72,10 @@ impl Sweeper {
         step: i32,
     ) -> Position {
         let mut new_cursor = match direction {
-            CursorDirection::Up => (current_cursor.0 - step, current_cursor.1),
-            CursorDirection::Down => (current_cursor.0 + step, current_cursor.1),
-            CursorDirection::Left => (current_cursor.0, current_cursor.1 - step),
-            CursorDirection::Right => (current_cursor.0, current_cursor.1 + step),
+            CursorDirection::Up => UnsafePosition(current_cursor.0 - step, current_cursor.1),
+            CursorDirection::Down => UnsafePosition(current_cursor.0 + step, current_cursor.1),
+            CursorDirection::Left => UnsafePosition(current_cursor.0, current_cursor.1 - step),
+            CursorDirection::Right => UnsafePosition(current_cursor.0, current_cursor.1 + step),
         };
 
         if new_cursor.0 < 0 {
@@ -86,12 +92,12 @@ impl Sweeper {
             new_cursor.1 = (self.field.cols as i32) - 1
         }
 
-        to_safe_position(new_cursor)
+        new_cursor.to_safe()
     }
 
     fn reveal_recursively(
         &mut self,
-        position: Position,
+        position: &Position,
         is_revealing_after_populating: bool,
         _max_depth: u8,
     ) {
@@ -99,8 +105,8 @@ impl Sweeper {
             return;
         }
 
-        let tile = self.field.get_tile(to_unsafe_position(position)).unwrap();
-        let neighbours = self.field.get_neighbours(to_unsafe_position(position));
+        let tile = self.field.get_tile(position.to_unsafe()).unwrap();
+        let neighbours = self.field.get_neighbours(position.to_unsafe());
         let safe_neighbours = neighbours
             .iter()
             .filter(|t| t.kind != TileKind::Bomb && !t.flagged && !t.revealed);
@@ -109,19 +115,19 @@ impl Sweeper {
             .filter(|t| t.flagged)
             .collect::<Vec<&Tile>>();
 
-        self.field = self.field.reveal(position);
+        self.field = self.field.reveal(&position);
 
         match tile.revealed {
             true => match tile.kind {
                 TileKind::Empty => safe_neighbours
-                    .for_each(|t| self.reveal_recursively(t.position, false, _max_depth - 1)),
+                    .for_each(|t| self.reveal_recursively(&t.position, false, _max_depth - 1)),
                 TileKind::Safe(bomb_count) => {
                     match flagged_neighbours.len() == bomb_count.try_into().unwrap() {
                         true => neighbours
                             .clone()
                             .iter()
                             .filter(|t| !t.flagged)
-                            .for_each(|t| self.field = self.field.reveal(t.position)),
+                            .for_each(|t| self.field = self.field.reveal(&t.position)),
                         false => {}
                     }
                 }
@@ -129,7 +135,7 @@ impl Sweeper {
             },
             false => match is_revealing_after_populating {
                 true => safe_neighbours
-                    .for_each(|t| self.reveal_recursively(t.position, false, _max_depth - 1)),
+                    .for_each(|t| self.reveal_recursively(&t.position, false, _max_depth - 1)),
                 false => match tile.kind {
                     TileKind::Safe(bomb_count) => {
                         match flagged_neighbours.len() == bomb_count.try_into().unwrap() {
@@ -137,12 +143,12 @@ impl Sweeper {
                                 .clone()
                                 .iter()
                                 .filter(|t| !t.flagged)
-                                .for_each(|t| self.reveal_recursively(t.position, false, 1)),
+                                .for_each(|t| self.reveal_recursively(&t.position, false, 1)),
                             false => {}
                         }
                     }
                     TileKind::Empty => safe_neighbours
-                        .for_each(|t| self.reveal_recursively(t.position, false, _max_depth - 1)),
+                        .for_each(|t| self.reveal_recursively(&t.position, false, _max_depth - 1)),
                     TileKind::Bomb => self.field = self.field.game_over(),
                 },
             },
@@ -164,7 +170,7 @@ impl Sweeper {
     }
 
     pub fn tick(&mut self, key: &Key, mut sweeper_cursor: Position) -> (bool, bool, Position) {
-        let unsafe_sweeper_cursor: UnsafePosition = to_unsafe_position(sweeper_cursor);
+        let unsafe_sweeper_cursor: UnsafePosition = sweeper_cursor.to_unsafe();
 
         sweeper_cursor = match key {
             Key::Char('w') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up, 1),
@@ -186,11 +192,11 @@ impl Sweeper {
             _ => sweeper_cursor,
         };
 
-        self.select(sweeper_cursor);
+        self.select(&sweeper_cursor);
 
         match key {
             Key::Char('f') => {
-                self.field = self.field.toggle_flag(sweeper_cursor);
+                self.field = self.field.toggle_flag(&sweeper_cursor);
                 ()
             }
             Key::Char(' ') | Key::Char('e') => {
@@ -203,9 +209,9 @@ impl Sweeper {
                     .all(|tile| tile.kind == TileKind::Empty);
 
                 if are_all_fields_empty {
-                    self.field = self.field.populate(sweeper_cursor);
+                    self.field = self.field.populate(&sweeper_cursor);
                 }
-                self.reveal_recursively(sweeper_cursor, are_all_fields_empty, 5);
+                self.reveal_recursively(&sweeper_cursor, are_all_fields_empty, 5);
             }
             _ => {}
         };
@@ -223,8 +229,8 @@ impl Sweeper {
         (should_exit, should_restart, sweeper_cursor)
     }
 
-    pub fn select(&mut self, position: Position) {
-        self.field = self.field.select(position);
+    pub fn select(&mut self, position: &Position) {
+        self.field = self.field.select(position.clone());
     }
 }
 
@@ -242,7 +248,7 @@ mod tests {
 
         let mut sweeper = Sweeper::new(Difficulty::Easy);
 
-        let sweeper_cursor = (3, 3);
+        let sweeper_cursor = Position(3, 3);
 
         let are_all_fields_empty = sweeper
             .field
@@ -253,9 +259,9 @@ mod tests {
             .all(|tile| tile.kind == TileKind::Empty);
 
         if are_all_fields_empty {
-            sweeper.field = sweeper.field.populate(sweeper_cursor);
+            sweeper.field = sweeper.field.populate(&sweeper_cursor);
         }
-        sweeper.reveal_recursively(sweeper_cursor, are_all_fields_empty, 5);
+        sweeper.reveal_recursively(&sweeper_cursor, are_all_fields_empty, 5);
 
         sweeper.display_field(&mut stdout)
     }

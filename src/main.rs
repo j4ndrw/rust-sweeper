@@ -2,7 +2,7 @@ mod field;
 mod sweeper;
 mod tile;
 
-use sweeper::{Difficulty, Sweeper};
+use sweeper::{Difficulty, Sweeper, Position};
 
 use clap::Parser;
 
@@ -34,11 +34,11 @@ fn main() {
         2 => Difficulty::Hard,
         _ => Difficulty::Nightmare,
     });
-    let mut cursor = (sweeper.field.rows / 2, sweeper.field.cols / 2);
+    let mut cursor = Position(sweeper.field.rows / 2, sweeper.field.cols / 2);
 
     writeln!(stdout, "{}", termion::clear::All).unwrap();
 
-    sweeper.select(cursor);
+    sweeper.select(&cursor);
 
     loop {
         sweeper.display_field(&mut stdout);

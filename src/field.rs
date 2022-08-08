@@ -1,5 +1,5 @@
 use crate::{
-    sweeper::{to_safe_position, to_unsafe_position, Position, UnsafePosition},
+    sweeper::{Position, UnsafePosition},
     tile::{Tile, TileKind},
 };
 use rand::thread_rng;
@@ -11,12 +11,12 @@ pub type TileMatrix = Vec<Vec<Tile>>;
 
 trait TileMatrixTrait {
     fn create_empty(rows: usize, cols: usize) -> Self;
-    fn check_bounds(self, position: UnsafePosition) -> Option<TileMatrix>;
-    fn get_tile(&self, position: UnsafePosition) -> Option<Tile>;
+    fn check_bounds(&self, position: UnsafePosition) -> Option<TileMatrix>;
+    fn get_tile(&self, position: &UnsafePosition) -> Option<Tile>;
     fn get_neighbours(&self, position: UnsafePosition) -> Vec<Tile>;
     fn populate_bombs(
         &self,
-        empty_point: Position,
+        selected_point: Position,
         rows: usize,
         cols: usize,
         bombs: usize,
@@ -28,12 +28,16 @@ trait TileMatrixTrait {
 impl TileMatrixTrait for TileMatrix {
     fn create_empty(rows: usize, cols: usize) -> Self {
         (0..rows)
-            .map(|row| (0..cols).map(|col| Tile::new_empty((row, col))).collect())
+            .map(|row| {
+                (0..cols)
+                    .map(|col| Tile::new_empty(Position(row, col)))
+                    .collect()
+            })
             .collect::<Self>()
     }
 
-    fn check_bounds(self, position: UnsafePosition) -> Option<TileMatrix> {
-        let (x, y) = position;
+    fn check_bounds(&self, position: UnsafePosition) -> Option<TileMatrix> {
+        let (x, y) = (position.0, position.1);
 
         let lower_bound = 0;
         let row_upper_bound = (self.len() - 1) as i32;
@@ -43,23 +47,24 @@ impl TileMatrixTrait for TileMatrix {
         let is_y_within_bounds = lower_bound <= y && y <= col_upper_bound;
 
         match is_x_within_bounds && is_y_within_bounds {
-            true => Some(self),
+            true => Some(self.clone()),
             false => None,
         }
     }
 
-    fn get_tile(&self, position: UnsafePosition) -> Option<Tile> {
+    fn get_tile(&self, position: &UnsafePosition) -> Option<Tile> {
         self.to_vec()
-            .check_bounds(position)
+            .check_bounds(position.clone())
             .and_then(|matrix| Some(matrix[position.0 as usize][position.1 as usize].clone()))
     }
 
     fn get_neighbours(&self, position: UnsafePosition) -> Vec<Tile> {
         (position.0 - 1..=position.0 + 1)
             .flat_map(|i| {
-                (position.1 - 1..=position.1 + 1).flat_map(move |j| self.get_tile((i, j)))
+                (position.1 - 1..=position.1 + 1)
+                    .flat_map(move |j| self.get_tile(&UnsafePosition(i, j)))
             })
-            .filter(|t| t.position != to_safe_position(position))
+            .filter(|t| t.position != position.to_safe())
             .collect()
     }
 
@@ -88,16 +93,16 @@ impl TileMatrixTrait for TileMatrix {
                             let is_bomb =
                                 (thread_rng().gen_range(0.0..1.0)) <= bomb_generation_frequency;
 
-                            let is_selected_point = (row, col) == selected_point
+                            let is_selected_point = Position(row, col) == selected_point
                                 || tile.neighbours.iter().any(|t| t.position == selected_point);
 
                             match is_selected_point {
-                                true => Tile::new_empty((row, col)),
+                                true => Tile::new_empty(Position(row, col)),
                                 false => match is_bomb {
                                     false => tile,
                                     true => {
                                         bombs_populated += 1;
-                                        Tile::new_bomb((row, col))
+                                        Tile::new_bomb(Position(row, col))
                                     }
                                 },
                             }
@@ -127,9 +132,9 @@ impl TileMatrixTrait for TileMatrix {
                 .collect();
 
             match filtered_neighbours.len() {
-                0 => Tile::new_empty(to_safe_position(position)),
+                0 => Tile::new_empty(position.to_safe()),
                 _ => Tile::new_safe(
-                    to_safe_position(position),
+                    position.to_safe(),
                     filtered_neighbours.into_iter().collect(),
                 ),
             }
@@ -141,7 +146,7 @@ impl TileMatrixTrait for TileMatrix {
                 let mapped_tiles = tiles.into_iter().enumerate().map(|(col, tile)| {
                     (
                         col,
-                        tile.set_neighbours(self.get_neighbours(to_unsafe_position((row, col)))),
+                        tile.set_neighbours(self.get_neighbours(Position(row, col).to_unsafe())),
                     )
                 });
                 if !with_bombs {
@@ -151,7 +156,7 @@ impl TileMatrixTrait for TileMatrix {
                         .into_iter()
                         .map(|(col, tile)| match tile.kind {
                             TileKind::Empty => {
-                                replace_empty(tile.neighbours, (row as i32, col as i32))
+                                replace_empty(tile.neighbours, UnsafePosition(row as i32, col as i32))
                             }
                             _ => tile.clone(),
                         })
@@ -197,19 +202,19 @@ impl Field {
         }
     }
 
-    pub fn populate(&self, starting_point: Position) -> Self {
+    pub fn populate(&self, starting_point: &Position) -> Self {
         Self {
             tile_matrix: self
                 .tile_matrix
                 .clone()
-                .populate_bombs(starting_point, self.rows, self.cols, self.bombs, None)
+                .populate_bombs(starting_point.clone(), self.rows, self.cols, self.bombs, None)
                 .populate_neighbours(true),
             ..self.clone()
         }
     }
 
     pub fn get_tile(&self, position: UnsafePosition) -> Option<Tile> {
-        self.tile_matrix.get_tile(position)
+        self.tile_matrix.get_tile(&position)
     }
 
     pub fn get_neighbours(&self, position: UnsafePosition) -> Vec<Tile> {
@@ -231,7 +236,7 @@ impl Field {
                     .into_iter()
                     .enumerate()
                     .map(|(col, tile)| {
-                        if tile_position == (row, col) {
+                        if tile_position == Position(row, col) {
                             return map_selected(tile);
                         }
                         if let Some(map_rest) = optional_map_rest {
@@ -255,10 +260,10 @@ impl Field {
         }
     }
 
-    pub fn toggle_flag(&self, tile_position: Position) -> Self {
+    pub fn toggle_flag(&self, tile_position: &Position) -> Self {
         Self {
             tile_matrix: self.apply_on_tile(
-                tile_position,
+                tile_position.clone(),
                 &move |tile| {
                     if tile.revealed {
                         return tile;
@@ -274,10 +279,10 @@ impl Field {
         }
     }
 
-    pub fn reveal(&self, tile_position: Position) -> Self {
+    pub fn reveal(&self, tile_position: &Position) -> Self {
         Self {
             tile_matrix: self.apply_on_tile(
-                tile_position,
+                tile_position.clone(),
                 &move |tile| {
                     if tile.revealed || tile.flagged {
                         return tile;
@@ -297,7 +302,8 @@ impl Field {
                 .tile_matrix
                 .clone()
                 .into_iter()
-                .map(|tiles| tiles.into_iter().map(|t| t.unflag().reveal()).collect()).collect(),
+                .map(|tiles| tiles.into_iter().map(|t| t.unflag().reveal()).collect())
+                .collect(),
             ..self.clone()
         }
     }
