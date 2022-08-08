@@ -38,16 +38,20 @@ fn main() {
         _ => Difficulty::Nighthmare,
     });
 
-    let mut cursor = (0, 0);
+    let mut cursor = (sweeper.field.rows / 2, sweeper.field.cols / 2);
     loop {
         sweeper.display_field(&mut stdout);
 
         let input = stdin.next();
 
         if let Some(Ok(key)) = input {
-            let (should_exit, updated_cursor) = sweeper.tick(&key, cursor);
+            let (should_exit, should_restart, updated_cursor) = sweeper.tick(&key, cursor);
             if should_exit {
                 break;
+            }
+
+            if should_restart {
+                sweeper = Sweeper::new(sweeper.difficulty);
             }
 
             cursor = updated_cursor;

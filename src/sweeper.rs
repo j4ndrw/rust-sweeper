@@ -39,7 +39,7 @@ enum CursorDirection {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Sweeper {
-    difficulty: Difficulty,
+    pub difficulty: Difficulty,
     pub field: Field,
 }
 
@@ -163,7 +163,7 @@ impl Sweeper {
         stdout.activate_raw_mode().unwrap();
     }
 
-    pub fn tick(&mut self, key: &Key, mut sweeper_cursor: Position) -> (bool, Position) {
+    pub fn tick(&mut self, key: &Key, mut sweeper_cursor: Position) -> (bool, bool, Position) {
         let unsafe_sweeper_cursor: UnsafePosition = to_unsafe_position(sweeper_cursor);
 
         sweeper_cursor = match key {
@@ -215,7 +215,12 @@ impl Sweeper {
             _ => false,
         };
 
-        (should_exit, sweeper_cursor)
+        let should_restart = match key {
+            Key::Char('r') => true,
+            _ => false,
+        };
+
+        (should_exit, should_restart, sweeper_cursor)
     }
 }
 

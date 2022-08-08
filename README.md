@@ -31,3 +31,4 @@ USAGE:
 - `f` to toggle flags
 - `Space` or `e` to reveal a tile
 - `q` or `Ctrl+C` to quit
+- `r` to restart
