@@ -17,6 +17,7 @@ pub struct Tile {
     pub position: Position,
 }
 
+#[allow(dead_code)]
 impl Tile {
     fn new(kind: TileKind, neighbours: Vec<Tile>, position: Position) -> Self {
         Self {
@@ -93,6 +94,7 @@ impl Tile {
     pub fn is_empty(&self) -> bool {
         self.kind == TileKind::Empty
     }
+
     pub fn is_safe(&self) -> bool {
         match self.kind {
             TileKind::Safe(_) => true,
