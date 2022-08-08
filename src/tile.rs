@@ -1,4 +1,5 @@
 use crate::sweeper::Position;
+use termion::color;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TileKind {
@@ -98,7 +99,7 @@ impl Tile {
     pub fn is_safe(&self) -> bool {
         match self.kind {
             TileKind::Safe(_) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_bomb(&self) -> bool {
@@ -107,13 +108,30 @@ impl Tile {
 
     pub fn repr(&self) -> String {
         match self.flagged {
-            true => "?".to_string(),
+            true => format!("{}{}?", color::Bg(color::Black), color::Fg(color::White)),
             _ => match self.revealed {
-                false => "·".to_string(),
+                false => format!("{}{}·", color::Bg(color::Black), color::Fg(color::White)),
                 true => match self.kind {
-                    TileKind::Bomb => "◆".to_string(),
-                    TileKind::Empty => " ".to_string(),
-                    TileKind::Safe(bombs) => format!("{}", bombs),
+                    TileKind::Bomb => {
+                        format!("{}{}◆", color::Bg(color::Black), color::Fg(color::Red))
+                    }
+                    TileKind::Empty => format!("{} ", color::Bg(color::Black)),
+                    TileKind::Safe(bombs) => format!(
+                        "{}{}{}",
+                        color::Bg(color::Black),
+                        match bombs {
+                            1 => color::Fg(color::Blue).to_string(),
+                            2 => color::Fg(color::LightGreen).to_string(),
+                            3 => color::Fg(color::Red).to_string(),
+                            4 => color::Fg(color::Magenta).to_string(),
+                            5 => color::Fg(color::LightYellow).to_string(),
+                            6 => color::Fg(color::LightCyan).to_string(),
+                            7 => color::Fg(color::LightBlack).to_string(),
+                            8 => color::Fg(color::LightBlue).to_string(),
+                            _ => "".to_string(),
+                        },
+                        bombs
+                    ),
                 },
             },
         }

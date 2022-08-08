@@ -3,6 +3,7 @@ use crate::{
     tile::{Tile, TileKind},
 };
 use rand::thread_rng;
+use termion::color;
 use std::fmt;
 
 use rand::Rng;
@@ -190,7 +191,7 @@ impl fmt::Display for Field {
         for tiles in self.tile_matrix.iter() {
             for tile in tiles {
                 match tile.selected {
-                    true => write!(f, "[{}]", tile.repr()).unwrap(),
+                    true => write!(f, "{}[{}]", color::Fg(color::White), tile.repr()).unwrap(),
                     false => write!(f, "{}", tile.padded_repr()).unwrap(),
                 };
             }
