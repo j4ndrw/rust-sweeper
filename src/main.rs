@@ -28,17 +28,18 @@ fn main() {
 
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut stdin = termion::async_stdin().keys();
-
-    writeln!(stdout, "{}", termion::clear::All).unwrap();
-
     let mut sweeper = Sweeper::new(match args.difficulty {
         0 => Difficulty::Easy,
         1 => Difficulty::Medium,
         2 => Difficulty::Hard,
         _ => Difficulty::Nighthmare,
     });
-
     let mut cursor = (sweeper.field.rows / 2, sweeper.field.cols / 2);
+
+    writeln!(stdout, "{}", termion::clear::All).unwrap();
+
+    sweeper.select(cursor);
+
     loop {
         sweeper.display_field(&mut stdout);
 

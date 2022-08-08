@@ -186,7 +186,7 @@ impl Sweeper {
             _ => sweeper_cursor,
         };
 
-        self.field = self.field.select(sweeper_cursor);
+        self.select(sweeper_cursor);
 
         match key {
             Key::Char('f') => {
@@ -221,6 +221,10 @@ impl Sweeper {
         };
 
         (should_exit, should_restart, sweeper_cursor)
+    }
+
+    pub fn select(&mut self, position: Position) {
+        self.field = self.field.select(position);
     }
 }
 
