@@ -90,6 +90,19 @@ impl Tile {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.kind == TileKind::Empty
+    }
+    pub fn is_safe(&self) -> bool {
+        match self.kind {
+            TileKind::Safe(_) => true,
+            _ => false
+        }
+    }
+    pub fn is_bomb(&self) -> bool {
+        self.kind == TileKind::Bomb
+    }
+
     pub fn repr(&self) -> String {
         match self.flagged {
             true => "?".to_string(),

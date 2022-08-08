@@ -109,7 +109,7 @@ impl Sweeper {
         let neighbours = self.field.get_neighbours(position.to_unsafe());
         let safe_neighbours = neighbours
             .iter()
-            .filter(|t| t.kind != TileKind::Bomb && !t.flagged && !t.revealed);
+            .filter(|t| !t.is_bomb() && !t.flagged && !t.revealed);
         let flagged_neighbours = neighbours
             .iter()
             .filter(|t| t.flagged)
@@ -206,7 +206,7 @@ impl Sweeper {
                     .clone()
                     .iter()
                     .flatten()
-                    .all(|tile| tile.kind == TileKind::Empty);
+                    .all(|tile| tile.is_empty());
 
                 if are_all_fields_empty {
                     self.field = self.field.populate(&sweeper_cursor);
@@ -256,7 +256,7 @@ mod tests {
             .clone()
             .iter()
             .flatten()
-            .all(|tile| tile.kind == TileKind::Empty);
+            .all(|tile| tile.is_empty());
 
         if are_all_fields_empty {
             sweeper.field = sweeper.field.populate(&sweeper_cursor);

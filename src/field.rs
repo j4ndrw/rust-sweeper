@@ -136,7 +136,7 @@ impl TileMatrixTrait for TileMatrix {
         let replace_empty = |neighbours: Vec<Tile>, position: UnsafePosition| {
             let filtered_neighbours: Vec<Tile> = neighbours
                 .into_iter()
-                .filter(|tile| tile.kind == TileKind::Bomb)
+                .filter(|tile| tile.is_bomb())
                 .collect();
 
             match filtered_neighbours.len() {
