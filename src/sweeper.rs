@@ -25,7 +25,7 @@ pub enum Difficulty {
     Easy,
     Medium,
     Hard,
-    Nighthmare
+    Nightmare
 }
 
 #[allow(dead_code)]
@@ -53,7 +53,7 @@ impl Sweeper {
                     Difficulty::Easy => Field::create(9, 9, 10),
                     Difficulty::Medium => Field::create(16, 16, 40),
                     Difficulty::Hard => Field::create(16, 30, 99),
-                    Difficulty::Nighthmare => Field::create(25, 55, 500),
+                    Difficulty::Nightmare => Field::create(25, 55, 500),
                 }
             },
         }

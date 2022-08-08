@@ -32,7 +32,7 @@ fn main() {
         0 => Difficulty::Easy,
         1 => Difficulty::Medium,
         2 => Difficulty::Hard,
-        _ => Difficulty::Nighthmare,
+        _ => Difficulty::Nightmare,
     });
     let mut cursor = (sweeper.field.rows / 2, sweeper.field.cols / 2);
 
