@@ -2,13 +2,11 @@ mod field;
 mod sweeper;
 mod tile;
 
-use sweeper::{Difficulty, Sweeper, Position};
+use sweeper::{Difficulty, Position, Sweeper};
 
 use clap::Parser;
 
-use core::time;
 use std::io::stdout;
-use std::thread;
 
 use termion;
 use termion::input::TermRead;
@@ -39,10 +37,9 @@ fn main() {
     writeln!(stdout, "{}", termion::clear::All).unwrap();
 
     sweeper.select(&cursor);
+    sweeper.display_field(&mut stdout);
 
     loop {
-        sweeper.display_field(&mut stdout);
-
         let input = stdin.next();
 
         if let Some(Ok(key)) = input {
@@ -56,10 +53,9 @@ fn main() {
             }
 
             cursor = updated_cursor;
+            sweeper.display_field(&mut stdout);
         }
 
         stdout.lock().flush().unwrap();
-
-        thread::sleep(time::Duration::from_millis(50));
     }
 }
