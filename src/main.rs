@@ -18,7 +18,16 @@ use std::io::Write;
 #[clap(author, version, about, long_about = None)]
 struct Args {
     #[clap(short, long, value_parser)]
-    difficulty: u8,
+    difficulty: Option<u8>,
+
+    #[clap(short, long, value_parser)]
+    rows: Option<usize>,
+
+    #[clap(short, long, value_parser)]
+    cols: Option<usize>,
+
+    #[clap(short, long, value_parser)]
+    bomb_percentile: Option<f32>,
 }
 
 fn main() {
@@ -26,12 +35,18 @@ fn main() {
 
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut stdin = termion::async_stdin().keys();
-    let mut sweeper = Sweeper::new(match args.difficulty {
-        0 => Difficulty::Easy,
-        1 => Difficulty::Medium,
-        2 => Difficulty::Hard,
-        _ => Difficulty::Nightmare,
-    });
+    let difficulty = match args.difficulty {
+        Some(0) => Difficulty::Easy,
+        Some(1) => Difficulty::Medium,
+        Some(2) => Difficulty::Hard,
+        Some(3) => Difficulty::Nightmare,
+        _ => Difficulty::Custom,
+    };
+    let custom_params = match (args.rows, args.cols, args.bomb_percentile) {
+        (Some(rows), Some(cols), Some(bomb_percentile)) => Some((rows, cols, bomb_percentile)),
+        _ => None,
+    };
+    let mut sweeper = Sweeper::new(difficulty, custom_params);
     let mut cursor = Position(sweeper.field.rows / 2, sweeper.field.cols / 2);
 
     writeln!(stdout, "{}", termion::clear::All).unwrap();
@@ -49,7 +64,7 @@ fn main() {
             }
 
             if should_restart {
-                sweeper = Sweeper::new(sweeper.difficulty);
+                sweeper = Sweeper::new(difficulty, custom_params);
             }
 
             cursor = updated_cursor;

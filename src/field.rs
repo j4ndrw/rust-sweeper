@@ -3,8 +3,8 @@ use crate::{
     tile::{Tile, TileKind},
 };
 use rand::thread_rng;
-use termion::color;
 use std::fmt;
+use termion::color;
 
 use rand::Rng;
 
@@ -203,7 +203,12 @@ impl fmt::Display for Field {
 
 #[allow(dead_code)]
 impl Field {
-    pub fn create(rows: usize, cols: usize, bombs: usize) -> Self {
+    pub fn create(rows: usize, cols: usize, bomb_percentile: f32) -> Self {
+        assert!(
+            bomb_percentile > 0.0 && bomb_percentile < 1.0,
+            "Bomb percentile must be between 0 and 1"
+        );
+        let bombs = (((rows * cols) as f32) * bomb_percentile) as usize;
         Self {
             rows,
             cols,

@@ -31,7 +31,8 @@ pub enum Difficulty {
     Easy,
     Medium,
     Hard,
-    Nightmare
+    Nightmare,
+    Custom,
 }
 
 #[allow(dead_code)]
@@ -45,31 +46,38 @@ enum CursorDirection {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Sweeper {
-    pub difficulty: Difficulty,
+    difficulty: Difficulty,
     pub field: Field,
 }
 
 #[allow(dead_code)]
 impl Sweeper {
-    pub fn new(difficulty: Difficulty) -> Self {
+    pub fn new(difficulty: Difficulty, custom_params: Option<(usize, usize, f32)>) -> Self {
+        use Difficulty::*;
+
         Self {
             difficulty,
             field: {
                 match difficulty {
-                    Difficulty::Easy => Field::create(9, 9, 10),
-                    Difficulty::Medium => Field::create(16, 16, 40),
-                    Difficulty::Hard => Field::create(16, 30, 99),
-                    Difficulty::Nightmare => Field::create(25, 55, 500),
+                    Custom => {
+                        assert!(
+                            custom_params.is_some(),
+                            "Please pass custom parameters if you want a custom difficulty"
+                        );
+
+                        let (rows, cols, bomb_percentile) = custom_params.unwrap();
+                        Field::create(rows, cols, bomb_percentile)
+                    }
+                    Easy => Field::create(9, 9, 0.125),
+                    Medium => Field::create(16, 16, 0.15625),
+                    Hard => Field::create(16, 30, 0.20625),
+                    Nightmare => Field::create(25, 55, 0.35),
                 }
             },
         }
     }
 
-    fn move_cursor(
-        &self,
-        current_cursor: UnsafePosition,
-        direction: CursorDirection,
-    ) -> Position {
+    fn move_cursor(&self, current_cursor: UnsafePosition, direction: CursorDirection) -> Position {
         let mut new_cursor = match direction {
             CursorDirection::Up => UnsafePosition(current_cursor.0 - 1, current_cursor.1),
             CursorDirection::Down => UnsafePosition(current_cursor.0 + 1, current_cursor.1),
@@ -237,7 +245,7 @@ mod tests {
     fn test_reveal_recursively() {
         let mut stdout = stdout().into_raw_mode().unwrap();
 
-        let mut sweeper = Sweeper::new(Difficulty::Easy);
+        let mut sweeper = Sweeper::new(Difficulty::Easy, None);
 
         let sweeper_cursor = Position(3, 3);
 
