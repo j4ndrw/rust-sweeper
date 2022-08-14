@@ -26,8 +26,7 @@ USAGE:
 - 3 is nightmare (25x55 board with 500 bombs)
 
 # Controls
-- `WSAD` for moving the cursor in a single step
-- `Alt+[W|S|A|D]` for moving the cursor in a double step
+- `WSAD` for moving the cursor
 - `f` to toggle flags
 - `Space` or `e` to reveal a tile
 - `q` or `Ctrl+C` to quit

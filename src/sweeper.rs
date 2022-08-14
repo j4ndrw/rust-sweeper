@@ -69,13 +69,12 @@ impl Sweeper {
         &self,
         current_cursor: UnsafePosition,
         direction: CursorDirection,
-        step: i32,
     ) -> Position {
         let mut new_cursor = match direction {
-            CursorDirection::Up => UnsafePosition(current_cursor.0 - step, current_cursor.1),
-            CursorDirection::Down => UnsafePosition(current_cursor.0 + step, current_cursor.1),
-            CursorDirection::Left => UnsafePosition(current_cursor.0, current_cursor.1 - step),
-            CursorDirection::Right => UnsafePosition(current_cursor.0, current_cursor.1 + step),
+            CursorDirection::Up => UnsafePosition(current_cursor.0 - 1, current_cursor.1),
+            CursorDirection::Down => UnsafePosition(current_cursor.0 + 1, current_cursor.1),
+            CursorDirection::Left => UnsafePosition(current_cursor.0, current_cursor.1 - 1),
+            CursorDirection::Right => UnsafePosition(current_cursor.0, current_cursor.1 + 1),
         };
 
         if new_cursor.0 < 0 {
@@ -173,22 +172,14 @@ impl Sweeper {
         let unsafe_sweeper_cursor: UnsafePosition = sweeper_cursor.to_unsafe();
 
         sweeper_cursor = match key {
-            Key::Char('w') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up, 1),
-            Key::Char('s') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down, 1),
-            Key::Char('a') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left, 1),
-            Key::Char('d') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right, 1),
-            Key::Alt('w') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up, 2),
-            Key::Alt('s') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down, 2),
-            Key::Alt('a') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left, 2),
-            Key::Alt('d') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right, 2),
-            Key::Char('i') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up, 1),
-            Key::Char('k') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down, 1),
-            Key::Char('j') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left, 1),
-            Key::Char('l') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right, 1),
-            Key::Alt('i') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up, 2),
-            Key::Alt('k') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down, 2),
-            Key::Alt('j') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left, 2),
-            Key::Alt('l') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right, 2),
+            Key::Char('w') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up),
+            Key::Char('s') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down),
+            Key::Char('a') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left),
+            Key::Char('d') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right),
+            Key::Char('i') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Up),
+            Key::Char('k') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Down),
+            Key::Char('j') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Left),
+            Key::Char('l') => self.move_cursor(unsafe_sweeper_cursor, CursorDirection::Right),
             _ => sweeper_cursor,
         };
 
